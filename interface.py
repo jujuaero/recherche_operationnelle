@@ -42,6 +42,7 @@ def charger_probleme():
         # Activer boutons d'algorithmes
         button_nord_ouest.config(state=tk.NORMAL)
         button_balas_hammer.config(state=tk.NORMAL)
+        button_marche_pied.config(state=tk.NORMAL)
         
     except FileNotFoundError:
         messagebox.showerror("Erreur", f"Fichier 'transport{numero}.txt' non trouvé")
@@ -126,6 +127,26 @@ def executer_balas_hammer():
         messagebox.showerror("Erreur Balas-Hammer", str(e))
 
 
+def executer_marche_pied_potentiels():
+    """Exécute l'optimisation marche-pied/potentiels avec la méthode initiale choisie"""
+    global probleme_actuel
+
+    if probleme_actuel is None:
+        messagebox.showwarning("Attention", "Chargez d'abord un problème.")
+        return
+
+    try:
+        methode = choix_methode_initiale.get()
+        resultat = probleme_actuel.methode_marche_pied_potentiels(methode_initiale=methode)
+
+        text_output.config(state=tk.NORMAL)
+        text_output.insert(tk.END, "\n" + resultat + "\n")
+        text_output.config(state=tk.DISABLED)
+        text_output.see(tk.END)
+    except Exception as e:
+        messagebox.showerror("Erreur Marche-pied/Potentiels", str(e))
+
+
 def nouveau_probleme():
     """Réinitialise les données"""
     global probleme_actuel
@@ -140,6 +161,7 @@ def nouveau_probleme():
     
     button_nord_ouest.config(state=tk.DISABLED)
     button_balas_hammer.config(state=tk.DISABLED)
+    button_marche_pied.config(state=tk.DISABLED)
 
 
 # ========== CRÉATION FENÊTRE PRINCIPALE ==========
@@ -150,6 +172,8 @@ root.geometry("1100x800")
 # ========== FRAME CONTRÔLES ==========
 frame_controls = tk.Frame(root, bg="#e8f4f8", pady=10)
 frame_controls.pack(side=tk.TOP, fill=tk.X)
+
+choix_methode_initiale = tk.StringVar(value="nord_ouest")
 
 label_numero = tk.Label(frame_controls, text="Problème n°:", bg="#e8f4f8", font=("Arial", 10))
 label_numero.pack(side=tk.LEFT, padx=5)
@@ -168,6 +192,40 @@ button_nord_ouest.pack(side=tk.LEFT, padx=5)
 button_balas_hammer = tk.Button(frame_controls, text="Balas-Hammer", command=executer_balas_hammer, 
                                  state=tk.DISABLED, bg="#2196F3", fg="white", font=("Arial", 9))
 button_balas_hammer.pack(side=tk.LEFT, padx=5)
+
+label_choix = tk.Label(frame_controls, text="Init MP:", bg="#e8f4f8", font=("Arial", 10))
+label_choix.pack(side=tk.LEFT, padx=(12, 4))
+
+radio_no = tk.Radiobutton(
+    frame_controls,
+    text="Nord-Ouest",
+    variable=choix_methode_initiale,
+    value="nord_ouest",
+    bg="#e8f4f8",
+    font=("Arial", 9)
+)
+radio_no.pack(side=tk.LEFT, padx=2)
+
+radio_bh = tk.Radiobutton(
+    frame_controls,
+    text="Balas-Hammer",
+    variable=choix_methode_initiale,
+    value="balas_hammer",
+    bg="#e8f4f8",
+    font=("Arial", 9)
+)
+radio_bh.pack(side=tk.LEFT, padx=2)
+
+button_marche_pied = tk.Button(
+    frame_controls,
+    text="Marche-pied + potentiels",
+    command=executer_marche_pied_potentiels,
+    state=tk.DISABLED,
+    bg="#673AB7",
+    fg="white",
+    font=("Arial", 9)
+)
+button_marche_pied.pack(side=tk.LEFT, padx=5)
 
 button_afficher_transport = tk.Button(frame_controls, text="Afficher transport", command=afficher_matrice_transport, 
                                       bg="#FF9800", fg="white", font=("Arial", 9))

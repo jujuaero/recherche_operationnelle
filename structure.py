@@ -347,6 +347,184 @@ class ProblemeTransport:
         resultat += f"Taille de base: {len(self.base)} (attendu: {self.n + self.m - 1})"
 
         return resultat
+
+    def _calculer_potentiels(self):
+        """Calcule les potentiels u(i), v(j) à partir des cellules de base."""
+        u = [None] * self.n
+        v = [None] * self.m
+
+        # Amorce sur le premier fournisseur.
+        if self.n > 0:
+            u[0] = 0
+
+        base_liste = list(self.base)
+        changements = True
+
+        while changements:
+            changements = False
+            for i, j in base_liste:
+                if u[i] is not None and v[j] is None:
+                    v[j] = self.couts[i][j] - u[i]
+                    changements = True
+                elif v[j] is not None and u[i] is None:
+                    u[i] = self.couts[i][j] - v[j]
+                    changements = True
+
+            # Si composantes déconnectées (dégénérescence), relancer depuis un u inconnu.
+            if not changements and (None in u or None in v):
+                for i in range(self.n):
+                    if u[i] is None:
+                        u[i] = 0
+                        changements = True
+                        break
+
+        # Fallback sécurité
+        u = [0 if val is None else val for val in u]
+        v = [0 if val is None else val for val in v]
+        return u, v
+
+    def _calculer_marginaux(self, potentiels_u, potentiels_v):
+        """Calcule les coûts marginaux des cellules hors base."""
+        marginaux = {}
+        for i in range(self.n):
+            for j in range(self.m):
+                if (i, j) not in self.base:
+                    marginaux[(i, j)] = self.couts[i][j] - (potentiels_u[i] + potentiels_v[j])
+        return marginaux
+
+    def _trouver_cycle(self, entree):
+        """
+        Trouve un cycle fermé alterné (ligne/colonne) passant par la cellule d'entrée.
+        Retourne une liste de cellules, avec entrée répétée en fin de cycle.
+        """
+        cellules = list(self.base | {entree})
+        lignes = {}
+        colonnes = {}
+
+        for i, j in cellules:
+            lignes.setdefault(i, []).append((i, j))
+            colonnes.setdefault(j, []).append((i, j))
+
+        def voisins(cellule, deplacement):
+            i, j = cellule
+            candidats = lignes[i] if deplacement == "ligne" else colonnes[j]
+            return [c for c in candidats if c != cellule]
+
+        def dfs(cellule_courante, deplacement, chemin, visites):
+            for nxt in voisins(cellule_courante, deplacement):
+                if nxt == entree and len(chemin) >= 4:
+                    return chemin + [entree]
+
+                if nxt == entree:
+                    continue
+
+                if nxt in visites:
+                    continue
+
+                if nxt not in self.base:
+                    continue
+
+                res = dfs(
+                    nxt,
+                    "colonne" if deplacement == "ligne" else "ligne",
+                    chemin + [nxt],
+                    visites | {nxt}
+                )
+                if res:
+                    return res
+
+            return None
+
+        # Le cycle peut commencer par un déplacement ligne ou colonne.
+        for depart in ("ligne", "colonne"):
+            cycle = dfs(entree, depart, [entree], set())
+            if cycle:
+                return cycle
+
+        return None
+
+    def methode_marche_pied_potentiels(self, methode_initiale="nord_ouest", max_iterations=100):
+        """
+        Optimise une solution de transport via marche-pied avec potentiels.
+
+        Args:
+            methode_initiale: "nord_ouest" ou "balas_hammer"
+            max_iterations: garde-fou pour éviter une boucle infinie
+
+        Returns:
+            str: résumé des itérations d'optimisation.
+        """
+        if methode_initiale == "nord_ouest":
+            init = self.methode_nord_ouest()
+            nom_init = "Nord-Ouest"
+        elif methode_initiale == "balas_hammer":
+            init = self.methode_balas_hammer()
+            nom_init = "Balas-Hammer"
+        else:
+            raise ValueError("methode_initiale doit être 'nord_ouest' ou 'balas_hammer'.")
+
+        resultat = "\nMARCHE-PIED + POTENTIELS\n"
+        resultat += "=" * 80 + "\n"
+        resultat += f"Solution initiale choisie: {nom_init}\n"
+        resultat += f"Coût initial: {self.cout_total()}\n"
+        resultat += "-" * 80 + "\n"
+        resultat += init + "\n"
+
+        for iteration in range(1, max_iterations + 1):
+            potentiels_u, potentiels_v = self._calculer_potentiels()
+            marginaux = self._calculer_marginaux(potentiels_u, potentiels_v)
+
+            resultat += f"\nItération {iteration}\n"
+            resultat += self.afficher_table_potentiels(potentiels_u, potentiels_v) + "\n"
+            resultat += self.afficher_table_marginaux(marginaux) + "\n"
+
+            candidats_negatifs = [(cell, val) for cell, val in marginaux.items() if val < 0]
+
+            if not candidats_negatifs:
+                resultat += "Aucun coût marginal négatif: solution optimale atteinte.\n"
+                break
+
+            cellule_entree, delta = min(candidats_negatifs, key=lambda x: x[1])
+            cycle = self._trouver_cycle(cellule_entree)
+
+            if not cycle:
+                raise RuntimeError(
+                    f"Impossible de trouver un cycle pour la cellule entrante {cellule_entree}."
+                )
+
+            cellules_moins = [cycle[k] for k in range(1, len(cycle) - 1, 2)]
+            theta = min(self.transport[i][j] for i, j in cellules_moins)
+
+            for k in range(len(cycle) - 1):
+                i, j = cycle[k]
+                if k % 2 == 0:
+                    self.transport[i][j] += theta
+                else:
+                    self.transport[i][j] -= theta
+
+            self.base.add(cellule_entree)
+
+            sortante = None
+            for i, j in cellules_moins:
+                if self.transport[i][j] == 0:
+                    sortante = (i, j)
+                    break
+
+            if sortante and sortante in self.base:
+                self.base.remove(sortante)
+
+            resultat += (
+                f"Cellule entrante: {cellule_entree} (delta={delta}), "
+                f"theta={theta}, cellule sortante={sortante}\n"
+            )
+            resultat += f"Nouveau coût: {self.cout_total()}\n"
+        else:
+            resultat += f"\nArrêt: nombre maximal d'itérations atteint ({max_iterations}).\n"
+
+        resultat += "=" * 80 + "\n"
+        resultat += f"Coût final optimisé: {self.cout_total()}\n"
+        resultat += self.afficher_matrice_transport()
+        return resultat
     
     def _afficher_matrice(self, matrice, titre="", extras_colonne=None, label_extra=""):
         """
