@@ -169,6 +169,184 @@ class ProblemeTransport:
             for j in range(self.m):
                 cout += self.couts[i][j] * self.transport[i][j]
         return cout
+
+    def methode_nord_ouest(self):
+        """
+        Construit une solution initiale par la méthode du coin Nord-Ouest.
+
+        Returns:
+            str: résumé textuel des allocations effectuées.
+        """
+        if self.n == 0 or self.m == 0:
+            raise ValueError("Problème vide: dimensions invalides.")
+
+        # Réinitialiser la solution et la base
+        self.transport = [[0] * self.m for _ in range(self.n)]
+        self.base = set()
+
+        provisions_restantes = self.provisions.copy()
+        commandes_restantes = self.commandes.copy()
+
+        i, j = 0, 0
+        etapes = []
+
+        while i < self.n and j < self.m:
+            quantite = min(provisions_restantes[i], commandes_restantes[j])
+            self.transport[i][j] = quantite
+            self.base.add((i, j))
+            etapes.append(
+                f"Affecter {quantite} à (F{i}, C{j}) | "
+                f"Reste F{i}={provisions_restantes[i] - quantite}, "
+                f"Reste C{j}={commandes_restantes[j] - quantite}"
+            )
+
+            provisions_restantes[i] -= quantite
+            commandes_restantes[j] -= quantite
+
+            # Si la ligne et la colonne se ferment en même temps, avancer en diagonale.
+            # On ajoute une cellule dégénérée (0) dans la base pour garder n+m-1 cellules.
+            if provisions_restantes[i] == 0 and commandes_restantes[j] == 0:
+                if i + 1 < self.n:
+                    self.base.add((i + 1, j))
+                elif j + 1 < self.m:
+                    self.base.add((i, j + 1))
+                i += 1
+                j += 1
+            elif provisions_restantes[i] == 0:
+                i += 1
+            else:
+                j += 1
+
+        if len(self.base) > self.n + self.m - 1:
+            # Sécurité: ne pas dépasser la taille de base attendue.
+            base_ordonnee = sorted(self.base)
+            self.base = set(base_ordonnee[: self.n + self.m - 1])
+
+        resultat = "\nMÉTHODE DU COIN NORD-OUEST\n"
+        resultat += "=" * 80 + "\n"
+        for k, etape in enumerate(etapes, 1):
+            resultat += f"{k:>2}. {etape}\n"
+        resultat += "=" * 80 + "\n"
+        resultat += f"Coût total obtenu: {self.cout_total()}\n"
+        resultat += f"Taille de base: {len(self.base)} (attendu: {self.n + self.m - 1})"
+
+        return resultat
+
+    def methode_balas_hammer(self):
+        """
+        Construit une solution initiale avec la méthode de Balas-Hammer
+        (aussi connue comme approximation de Vogel).
+
+        Returns:
+            str: résumé textuel des étapes et du coût obtenu.
+        """
+        if self.n == 0 or self.m == 0:
+            raise ValueError("Problème vide: dimensions invalides.")
+
+        self.transport = [[0] * self.m for _ in range(self.n)]
+        self.base = set()
+
+        provisions_restantes = self.provisions.copy()
+        commandes_restantes = self.commandes.copy()
+
+        lignes_actives = set(range(self.n))
+        colonnes_actives = set(range(self.m))
+        etapes = []
+
+        def penalite_ligne(i):
+            couts_actifs = sorted(self.couts[i][j] for j in colonnes_actives)
+            if len(couts_actifs) == 0:
+                return -1
+            if len(couts_actifs) == 1:
+                return couts_actifs[0]
+            return couts_actifs[1] - couts_actifs[0]
+
+        def penalite_colonne(j):
+            couts_actifs = sorted(self.couts[i][j] for i in lignes_actives)
+            if len(couts_actifs) == 0:
+                return -1
+            if len(couts_actifs) == 1:
+                return couts_actifs[0]
+            return couts_actifs[1] - couts_actifs[0]
+
+        def meilleure_colonne_de_ligne(i):
+            return min(colonnes_actives, key=lambda j: self.couts[i][j])
+
+        def meilleure_ligne_de_colonne(j):
+            return min(lignes_actives, key=lambda i: self.couts[i][j])
+
+        while lignes_actives and colonnes_actives:
+            candidats = []
+
+            for i in lignes_actives:
+                p = penalite_ligne(i)
+                j_min = meilleure_colonne_de_ligne(i)
+                cout_min = self.couts[i][j_min]
+                q_possible = min(provisions_restantes[i], commandes_restantes[j_min])
+                candidats.append(("ligne", i, p, j_min, cout_min, q_possible))
+
+            for j in colonnes_actives:
+                p = penalite_colonne(j)
+                i_min = meilleure_ligne_de_colonne(j)
+                cout_min = self.couts[i_min][j]
+                q_possible = min(provisions_restantes[i_min], commandes_restantes[j])
+                candidats.append(("colonne", j, p, i_min, cout_min, q_possible))
+
+            # Priorité: pénalité max, coût min, quantité max.
+            type_sel, idx_sel, pen_sel, idx_pair, cout_sel, q_sel = max(
+                candidats,
+                key=lambda x: (x[2], -x[4], x[5])
+            )
+
+            if type_sel == "ligne":
+                i, j = idx_sel, idx_pair
+            else:
+                i, j = idx_pair, idx_sel
+
+            quantite = min(provisions_restantes[i], commandes_restantes[j])
+            self.transport[i][j] += quantite
+            self.base.add((i, j))
+
+            etapes.append(
+                f"Pénalité max={pen_sel} sur {type_sel} {idx_sel}; "
+                f"coût min={self.couts[i][j]} en (F{i}, C{j}), allocation={quantite}"
+            )
+
+            provisions_restantes[i] -= quantite
+            commandes_restantes[j] -= quantite
+
+            ligne_epuisee = provisions_restantes[i] == 0
+            colonne_saturee = commandes_restantes[j] == 0
+
+            if ligne_epuisee and colonne_saturee:
+                # Cas dégénéré: retirer les deux et ajouter une cellule 0 à la base.
+                lignes_actives.discard(i)
+                colonnes_actives.discard(j)
+
+                if lignes_actives:
+                    i_alt = next(iter(lignes_actives))
+                    self.base.add((i_alt, j))
+                elif colonnes_actives:
+                    j_alt = next(iter(colonnes_actives))
+                    self.base.add((i, j_alt))
+            elif ligne_epuisee:
+                lignes_actives.discard(i)
+            elif colonne_saturee:
+                colonnes_actives.discard(j)
+
+        if len(self.base) > self.n + self.m - 1:
+            base_ordonnee = sorted(self.base)
+            self.base = set(base_ordonnee[: self.n + self.m - 1])
+
+        resultat = "\nMÉTHODE BALAS-HAMMER\n"
+        resultat += "=" * 80 + "\n"
+        for k, etape in enumerate(etapes, 1):
+            resultat += f"{k:>2}. {etape}\n"
+        resultat += "=" * 80 + "\n"
+        resultat += f"Coût total obtenu: {self.cout_total()}\n"
+        resultat += f"Taille de base: {len(self.base)} (attendu: {self.n + self.m - 1})"
+
+        return resultat
     
     def _afficher_matrice(self, matrice, titre="", extras_colonne=None, label_extra=""):
         """

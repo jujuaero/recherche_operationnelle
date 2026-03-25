@@ -86,6 +86,46 @@ def afficher_matrice_transport():
     text_output.see(tk.END)
 
 
+def executer_nord_ouest():
+    """Exécute la méthode du coin Nord-Ouest sur le problème chargé"""
+    global probleme_actuel
+
+    if probleme_actuel is None:
+        messagebox.showwarning("Attention", "Chargez d'abord un problème.")
+        return
+
+    try:
+        resultat = probleme_actuel.methode_nord_ouest()
+        affichage = resultat + "\n\n" + probleme_actuel.afficher_matrice_transport() + "\n"
+
+        text_output.config(state=tk.NORMAL)
+        text_output.insert(tk.END, "\n" + affichage)
+        text_output.config(state=tk.DISABLED)
+        text_output.see(tk.END)
+    except Exception as e:
+        messagebox.showerror("Erreur Nord-Ouest", str(e))
+
+
+def executer_balas_hammer():
+    """Exécute la méthode Balas-Hammer sur le problème chargé"""
+    global probleme_actuel
+
+    if probleme_actuel is None:
+        messagebox.showwarning("Attention", "Chargez d'abord un problème.")
+        return
+
+    try:
+        resultat = probleme_actuel.methode_balas_hammer()
+        affichage = resultat + "\n\n" + probleme_actuel.afficher_matrice_transport() + "\n"
+
+        text_output.config(state=tk.NORMAL)
+        text_output.insert(tk.END, "\n" + affichage)
+        text_output.config(state=tk.DISABLED)
+        text_output.see(tk.END)
+    except Exception as e:
+        messagebox.showerror("Erreur Balas-Hammer", str(e))
+
+
 def nouveau_probleme():
     """Réinitialise les données"""
     global probleme_actuel
@@ -121,11 +161,11 @@ entry_numero.bind('<Return>', lambda e: charger_probleme())
 button_charger = tk.Button(frame_controls, text="Charger", command=charger_probleme, bg="#4CAF50", fg="white", font=("Arial", 9))
 button_charger.pack(side=tk.LEFT, padx=5)
 
-button_nord_ouest = tk.Button(frame_controls, text="Nord-Ouest", command=lambda: messagebox.showinfo("Info", "À implémenter"), 
+button_nord_ouest = tk.Button(frame_controls, text="Nord-Ouest", command=executer_nord_ouest, 
                                state=tk.DISABLED, bg="#2196F3", fg="white", font=("Arial", 9))
 button_nord_ouest.pack(side=tk.LEFT, padx=5)
 
-button_balas_hammer = tk.Button(frame_controls, text="Balas-Hammer", command=lambda: messagebox.showinfo("Info", "À implémenter"), 
+button_balas_hammer = tk.Button(frame_controls, text="Balas-Hammer", command=executer_balas_hammer, 
                                  state=tk.DISABLED, bg="#2196F3", fg="white", font=("Arial", 9))
 button_balas_hammer.pack(side=tk.LEFT, padx=5)
 
