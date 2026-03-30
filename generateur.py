@@ -25,6 +25,12 @@ def generer_fichier_transport(n, m, nom_fichier=None):
         val = random.randint(1, max(1, reste // (m - i)))
         commandes.append(val)
         reste -= val
+    # Garantir que le dernier client a une demande positive
+    if reste <= 0:
+        reste = 1
+        # Réajuster une commande précédente si nécessaire
+        if commandes:
+            commandes[-1] = max(1, commandes[-1] - 1)
     commandes.append(reste)  # Le dernier client prend tout le reste
 
     # 3. Écriture du fichier
