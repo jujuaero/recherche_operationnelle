@@ -53,7 +53,7 @@ def generer_fichier_transport(n, m, nom_fichier=None):
         ligne_commandes = " ".join(map(str, commandes))
         f.write(f"{ligne_commandes}\n")
 
-    print(f"✓ Fichier '{chemin_complet}' généré avec succès ({n} fournisseurs, {m} clients).")
+    print(f"[OK] Fichier '{chemin_complet}' genere ({n} fournisseurs, {m} clients).")
 
 
 if __name__ == "__main__":

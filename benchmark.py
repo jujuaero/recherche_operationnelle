@@ -20,18 +20,23 @@ class BenchmarkTransport:
     def _charger_ou_creer(self):
         """Crée ou recharge le CSV existant"""
         if Path(self.fichier_csv).exists():
-            print(f"✓ Fichier '{self.fichier_csv}' trouvé, continuer les tests...")
+            print(f"[OK] Fichier '{self.fichier_csv}' trouve, continuer les tests...")
             df = pd.read_csv(self.fichier_csv)
             # Assurer que les colonnes numériques sont bien typées
             df['temps_ms'] = pd.to_numeric(df['temps_ms'], errors='coerce')
             df['cout_total'] = pd.to_numeric(df['cout_total'], errors='coerce')
             df['base_size'] = pd.to_numeric(df['base_size'], errors='coerce')
             df['validations_ok'] = df['validations_ok'].astype(bool)
+            # Ajouter colonne initialisation si elle n'existe pas
+            if 'initialisation' not in df.columns:
+                df['initialisation'] = df['algorithme'].apply(
+                    lambda x: 'nord_ouest' if x == 'marche_pied' else None
+                )
             return df
         
-        print(f"✓ Création d'un nouveau fichier '{self.fichier_csv}'...")
+        print(f"[OK] Creation d'un nouveau fichier '{self.fichier_csv}'...")
         df = pd.DataFrame(columns=[
-            'test_id', 'n', 'm', 'algorithme', 
+            'test_id', 'n', 'm', 'algorithme', 'initialisation',
             'temps_ms', 'cout_total', 'base_size',
             'validations_ok', 'timestamp'
         ])
@@ -83,13 +88,14 @@ class BenchmarkTransport:
         
         return len(erreurs) == 0, erreurs
     
-    def ajouter_resultat(self, n, m, algo, temps_ms, cout, base_size, validations_ok):
+    def ajouter_resultat(self, n, m, algo, temps_ms, cout, base_size, validations_ok, initialisation=None):
         """Ajoute une ligne et sauvegarde incrémentalement"""
         nouveau = pd.DataFrame([{
             'test_id': len(self.donnees),
             'n': n,
             'm': m,
             'algorithme': algo,
+            'initialisation': initialisation,
             'temps_ms': temps_ms,
             'cout_total': cout,
             'base_size': base_size,
@@ -103,7 +109,7 @@ class BenchmarkTransport:
         """Sauvegarde incrémentale au CSV"""
         self.donnees.to_csv(self.fichier_csv, index=False)
     
-    def executer_test(self, n, m, algorithme, probleme):
+    def executer_test(self, n, m, algorithme, probleme, initialisation=None):
         """Exécute un algorithme et retourne temps + cout"""
         # Recopier le problème pour chaque algo
         prob = ProblemeTransport()
@@ -124,9 +130,12 @@ class BenchmarkTransport:
             elif algorithme == "balas_hammer":
                 prob.methode_balas_hammer()
             elif algorithme == "marche_pied":
-                # Initialiser avec Nord-Ouest puis optimiser
-                prob.methode_nord_ouest()
-                prob.methode_marche_pied_potentiels(methode_initiale="nord_ouest", max_iterations=100)
+                # Initialiser selon le paramètre
+                if initialisation == "balas_hammer":
+                    prob.methode_balas_hammer()
+                else:  # par défaut nord_ouest
+                    prob.methode_nord_ouest()
+                prob.methode_marche_pied_potentiels(methode_initiale=initialisation or "nord_ouest", max_iterations=100)
             
             temps_ms = (time.perf_counter() - debut) * 1000
             cout = prob.cout_total()
@@ -135,12 +144,12 @@ class BenchmarkTransport:
             # Valider la solution
             validations_ok, erreurs = self._valider_solution(prob)
             if not validations_ok:
-                print(f"  ⚠️ Validation ÉCHOUÉE ({algorithme}, {n}x{m}): {erreurs[0]}")
+                print(f"  [WARNING] Validation ECHOUEE ({algorithme}, {n}x{m}): {erreurs[0]}")
             
             return temps_ms, cout, base_size, validations_ok
         
         except Exception as e:
-            print(f"  ❌ Erreur lors de {algorithme} ({n}x{m}): {str(e)[:50]}")
+            print(f"  [ERROR] Erreur lors de {algorithme} ({n}x{m}): {str(e)[:50]}")
             return None, None, None, False
     
     def lancer_campagne(self, configs_dim, nb_tests_par_config=1000):
@@ -151,21 +160,23 @@ class BenchmarkTransport:
             configs_dim: liste de tuples (n, m) à tester
             nb_tests_par_config: nombre d'itérations par (n, m, algo) triplet
         """
-        algos = ["nord_ouest", "balas_hammer", "marche_pied"]
-        total_tests = len(configs_dim) * len(algos) * nb_tests_par_config
+        algos = ["nord_ouest", "balas_hammer"]
+        marche_pied_inits = ["nord_ouest", "balas_hammer"]
+        total_tests = len(configs_dim) * (len(algos) + len(marche_pied_inits)) * nb_tests_par_config
         test_num = 0
         
         print(f"\n{'='*80}")
         print(f"CAMPAGNE DE BENCHMARK")
         print(f"{'='*80}")
         print(f"Configurations: {configs_dim}")
-        print(f"Itérations par (n, m, algo): {nb_tests_par_config}")
+        print(f"Iterations par (n, m, algo): {nb_tests_par_config}")
         print(f"Total de tests: {total_tests}")
         print(f"Sauvegarde: {self.fichier_csv}\n")
         
         for n, m in configs_dim:
-            print(f"\n--- Configuration {n} × {m} ---")
+            print(f"\n--- Configuration {n} x {m} ---")
             
+            # Algorithmes de base
             for algo in algos:
                 print(f"  {algo}... ", end="", flush=True)
                 success_count = 0
@@ -173,14 +184,14 @@ class BenchmarkTransport:
                 for test_nbr in range(nb_tests_par_config):
                     test_num += 1
                     
-                    # Générer un problème aléatoire
+                    # Generer un probleme aleatoire
                     try:
                         prob = self._generer_probleme(n, m)
                     except Exception as e:
-                        print(f"\n  ❌ Génération échouée: {str(e)[:30]}")
+                        print(f"\n  [ERROR] Generation echouee: {str(e)[:30]}")
                         continue
                     
-                    # Exécuter le test
+                    # Executer le test
                     temps, cout, base_size, valid_ok = self.executer_test(n, m, algo, prob)
                     
                     if temps is not None:
@@ -192,11 +203,41 @@ class BenchmarkTransport:
                     if (test_nbr + 1) % 100 == 0:
                         print(f"{test_nbr + 1}/{nb_tests_par_config}", end=" ", flush=True)
                 
-                print(f"✓ ({success_count}/{nb_tests_par_config} valides)")
+                print(f"[OK] ({success_count}/{nb_tests_par_config} valides)")
+            
+            # Marche pied avec differentes initialisations
+            for init in marche_pied_inits:
+                label = f"marche_pied (init:{init})"
+                print(f"  {label}... ", end="", flush=True)
+                success_count = 0
+                
+                for test_nbr in range(nb_tests_par_config):
+                    test_num += 1
+                    
+                    # Generer un probleme aleatoire
+                    try:
+                        prob = self._generer_probleme(n, m)
+                    except Exception as e:
+                        print(f"\n  [ERROR] Generation echouee: {str(e)[:30]}")
+                        continue
+                    
+                    # Executer le test avec initialisation specifique
+                    temps, cout, base_size, valid_ok = self.executer_test(n, m, "marche_pied", prob, initialisation=init)
+                    
+                    if temps is not None:
+                        self.ajouter_resultat(n, m, "marche_pied", temps, cout, base_size, valid_ok, initialisation=init)
+                        if valid_ok:
+                            success_count += 1
+                    
+                    # Barre de progression
+                    if (test_nbr + 1) % 100 == 0:
+                        print(f"{test_nbr + 1}/{nb_tests_par_config}", end=" ", flush=True)
+                
+                print(f"[OK] ({success_count}/{nb_tests_par_config} valides)")
         
         print(f"\n{'='*80}")
-        print(f"Benchmark terminé !")
-        print(f"Résultats sauvegardés dans '{self.fichier_csv}'")
+        print(f"Benchmark termine !")
+        print(f"Resultats sauvegardes dans '{self.fichier_csv}'")
         print(f"{'='*80}\n")
     
     def analyser(self):
@@ -239,7 +280,7 @@ class BenchmarkTransport:
         
         # 5. Exporter en CSV pour traitement ultérieur
         print("\n\nDonnées disponibles pour Excel/R/Python :")
-        print(f"  → {self.fichier_csv}")
+        print(f"  -> {self.fichier_csv}")
 
 
 def main():

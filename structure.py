@@ -79,7 +79,7 @@ class ProblemeTransport:
         # Vérifier l'équilibrage
         if sum(probleme.provisions) != sum(probleme.commandes):
             raise ValueError(
-                f"Problème non équilibré: sum(provisions)={sum(probleme.provisions)}, "
+                f"Probleme non equilibre: sum(provisions)={sum(probleme.provisions)}, "
                 f"sum(commandes)={sum(probleme.commandes)}"
             )
         
@@ -172,13 +172,13 @@ class ProblemeTransport:
 
     def methode_nord_ouest(self):
         """
-        Construit une solution initiale par la méthode du coin Nord-Ouest.
+        Construit une solution initiale par la methode du coin Nord-Ouest.
 
         Returns:
-            str: résumé textuel des allocations effectuées.
+            str: resume textuel des allocations effectuees.
         """
         if self.n == 0 or self.m == 0:
-            raise ValueError("Problème vide: dimensions invalides.")
+            raise ValueError("Probleme vide: dimensions invalides.")
 
         # Réinitialiser la solution et la base
         self.transport = [[0] * self.m for _ in range(self.n)]
@@ -234,14 +234,14 @@ class ProblemeTransport:
 
     def methode_balas_hammer(self):
         """
-        Construit une solution initiale avec la méthode de Balas-Hammer
+        Construit une solution initiale avec la methode de Balas-Hammer
         (aussi connue comme approximation de Vogel).
 
         Returns:
-            str: résumé textuel des étapes et du coût obtenu.
+            str: resume textuel des etapes et du cout obtenu.
         """
         if self.n == 0 or self.m == 0:
-            raise ValueError("Problème vide: dimensions invalides.")
+            raise ValueError("Probleme vide: dimensions invalides.")
 
         self.transport = [[0] * self.m for _ in range(self.n)]
         self.base = set()
@@ -461,7 +461,7 @@ class ProblemeTransport:
             init = self.methode_balas_hammer()
             nom_init = "Balas-Hammer"
         else:
-            raise ValueError("methode_initiale doit être 'nord_ouest' ou 'balas_hammer'.")
+            raise ValueError("methode_initiale doit etre 'nord_ouest' ou 'balas_hammer'.")
 
         resultat = "\nMARCHE-PIED + POTENTIELS\n"
         resultat += "=" * 80 + "\n"
