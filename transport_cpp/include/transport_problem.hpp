@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -53,6 +54,12 @@ public:
     void northWest();
     void balasHammer();
     SolveResult steppingStonePotentials(
+        const std::string& initialMethod = "north_west",
+        int maxIterations = 1000,
+        bool initializationDone = false
+    );
+    SolveResult steppingStoneWithTrace(
+        std::ostream& trace,
         const std::string& initialMethod = "north_west",
         int maxIterations = 1000,
         bool initializationDone = false

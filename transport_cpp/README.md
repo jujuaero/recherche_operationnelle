@@ -7,6 +7,7 @@ Réécriture C++ du projet de transport (algorithmes + benchmark + étude 3.3) d
 - `transport_cli` : exécute les algorithmes sur un fichier ou un problème aléatoire.
 - `transport_benchmark` : campagne benchmark type projet Python.
 - `transport_etude10` : étude 3.3 (`n = 10, 40, 100, 400, 1000, 4000, 10000`).
+- `transport_traces` : génération automatique des traces demandées (12 problèmes, NO + BH).
 
 ## Build (PowerShell)
 
@@ -24,6 +25,7 @@ New-Item -ItemType Directory -Path .\bin -Force | Out-Null
 g++ -O3 -std=c++20 -I".\include" .\src\main.cpp .\src\transport_problem.cpp .\src\generator.cpp -o .\bin\transport_cli.exe
 g++ -O3 -std=c++20 -I".\include" .\src\benchmark_main.cpp .\src\transport_problem.cpp .\src\generator.cpp -o .\bin\transport_benchmark.exe
 g++ -O3 -std=c++20 -I".\include" .\src\etude10_main.cpp .\src\transport_problem.cpp .\src\generator.cpp -o .\bin\transport_etude10.exe
+g++ -O3 -std=c++20 -I".\include" .\src\traces_main.cpp .\src\transport_problem.cpp .\src\generator.cpp -o .\bin\transport_traces.exe
 ```
 
 ## Exécution
@@ -55,6 +57,26 @@ Optionnel: limiter les tailles jusqu'à `n_max` pour un run progressif:
 ```powershell
 .\build\Release\transport_etude10.exe 100 1000
 ```
+
+## Traces d'exécution (rendu)
+
+Génération des 24 traces (12 problèmes x NO/BH) avec format de nom demandé:
+
+```powershell
+.\build\Release\transport_traces.exe 2 4 traces
+```
+
+Sortie exemple: `2-4-trace5-no.txt`, `2-4-trace5-bh.txt`.
+
+## Campagne progressive et reprise
+
+Script PowerShell prêt à l'emploi:
+
+```powershell
+.	ools\run_campaign.ps1 -Repetitions 100 -Stages 100,400,1000 -RunTraces -GroupId 2 -TeamId 4
+```
+
+Le script enchaîne les stages d'étude, génère les traces et lance l'analyse des maxima/classification.
 
 Sortie: `resultats_etude10_cpp.csv`
 

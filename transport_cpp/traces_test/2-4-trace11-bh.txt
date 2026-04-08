@@ -1,0 +1,73 @@
+Groupe 2 - Equipe 4 - Probleme 11 - Init balas_hammer
+Fichier source: ../donnees/transport11.txt
+Dimensions: 20x10
+
+Cout initial: 277950
+MARCHE-PIED + POTENTIELS
+Initialisation: balas_hammer
+
+============================================================
+Iteration 1
+
+Matrice transport
+     F/C      C0      C1      C2      C3      C4      C5      C6      C7      C8      C9 Provision
+      F0      10       0       0       0       0       0       0       0       0       0        10
+      F1      20       0       0       0       0       0       0       0       0       0        20
+      F2      30       0       0       0       0       0       0       0       0       0        30
+      F3      40       0       0       0       0       0       0       0       0       0        40
+      F4       0      50       0       0       0       0       0       0       0       0        50
+      F5       0      60       0       0       0       0       0       0       0       0        60
+      F6      20      30      20       0       0       0       0       0       0       0        70
+      F7       0       0      80       0       0       0       0       0       0       0        80
+      F8       0       0      60      30       0       0       0       0       0       0        90
+      F9       0       0       0     100       0       0       0       0       0       0       100
+     F10       0       0       0      50      60       0       0       0       0       0       110
+     F11       0       0       0       0     120       0       0       0       0       0       120
+     F12       0       0       0       0      20     110       0       0       0       0       130
+     F13       0       0       0       0       0     110      30       0       0       0       140
+     F14       0       0       0       0       0       0     150       0       0       0       150
+     F15       0       0       0       0       0       0      60     100       0       0       160
+     F16       0       0       0       0       0       0       0     160      10       0       170
+     F17       0       0       0       0       0       0       0       0     180       0       180
+     F18       0       0       0       0       0       0       0       0      90     100       190
+     F19       0       0       0       0       0       0       0       0       0     200       200
+Demandes     120     140     160     180     200     220     240     260     280     300
+Cout courant: 277950
+Taille base: 29 (attendu: 29)
+Test cycle (BFS/structure): acyclique
+Test connexite (BFS/structure): composantes=1
+
+Potentiels u(i) / v(j)
+u(0)=0, u(1)=10, u(2)=20, u(3)=30, u(4)=39, u(5)=30, u(6)=60, u(7)=70, u(8)=80, u(9)=90, u(10)=100, u(11)=110, u(12)=120, u(13)=130, u(14)=140, u(15)=150, u(16)=160, u(17)=170, u(18)=180, u(19)=190
+v(0)=1, v(1)=2, v(2)=3, v(3)=4, v(4)=5, v(5)=6, v(6)=7, v(7)=8, v(8)=9, v(9)=10
+
+Table des couts marginaux (hors base)
+     F/C      C0      C1      C2      C3      C4      C5      C6      C7      C8      C9
+      F0    BASE       0       0       0       0       0       0       0       0       0
+      F1    BASE       0       0       0       0       0       0       0       0       0
+      F2    BASE       0       0       0       0       0       0       0       0       0
+      F3    BASE       0       0       0       0       0       0       0       0       0
+      F4       1    BASE       1       1       1       1       1       1       1       1
+      F5      20    BASE      20      20      20      20      20      20      20      20
+      F6    BASE    BASE    BASE       0       0       0       0       0       0       0
+      F7       0       0    BASE       0       0       0       0       0       0       0
+      F8       0       0    BASE    BASE       0       0       0       0       0       0
+      F9       0       0       0    BASE       0       0       0       0       0       0
+     F10       0       0       0    BASE    BASE       0       0       0       0       0
+     F11       0       0       0       0    BASE       0       0       0       0       0
+     F12       0       0       0       0    BASE    BASE       0       0       0       0
+     F13       0       0       0       0       0    BASE    BASE       0       0       0
+     F14       0       0       0       0       0       0    BASE       0       0       0
+     F15       0       0       0       0       0       0    BASE    BASE       0       0
+     F16       0       0       0       0       0       0       0    BASE    BASE       0
+     F17       0       0       0       0       0       0       0       0    BASE       0
+     F18       0       0       0       0       0       0       0       0    BASE    BASE
+     F19       0       0       0       0       0       0       0       0       0    BASE
+Aucune arete ameliorante detectee: solution optimale.
+
+============================================================
+RESULTAT FINAL
+Cout final: 277950
+Iterations: 1
+Hit max iterations: non
+Validation: OK

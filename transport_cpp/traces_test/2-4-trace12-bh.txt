@@ -1,0 +1,53 @@
+Groupe 2 - Equipe 4 - Probleme 12 - Init balas_hammer
+Fichier source: ../donnees/transport12.txt
+Dimensions: 10x16
+
+Cout initial: 154400
+MARCHE-PIED + POTENTIELS
+Initialisation: balas_hammer
+
+============================================================
+Iteration 1
+
+Matrice transport
+     F/C      C0      C1      C2      C3      C4      C5      C6      C7      C8      C9     C10     C11     C12     C13     C14     C15 Provision
+      F0     100      60       0       0       0       0       0       0       0       0       0       0       0       0       0       0       160
+      F1       0      40     100      20       0       0       0       0       0       0       0       0       0       0       0       0       160
+      F2       0       0       0      80      80       0       0       0       0       0       0       0       0       0       0       0       160
+      F3       0       0       0       0      20     100      40       0       0       0       0       0       0       0       0       0       160
+      F4       0       0       0       0       0       0      60     100       0       0       0       0       0       0       0       0       160
+      F5       0       0       0       0       0       0       0       0     100      60       0       0       0       0       0       0       160
+      F6       0       0       0       0       0       0       0       0       0      40     100      20       0       0       0       0       160
+      F7       0       0       0       0       0       0       0       0       0       0       0      80      80       0       0       0       160
+      F8       0       0       0       0       0       0       0       0       0       0       0       0      20     100      40       0       160
+      F9       0       0       0       0       0       0       0       0       0       0       0       0       0       0      60     100       160
+Demandes     100     100     100     100     100     100     100     100     100     100     100     100     100     100     100     100
+Cout courant: 154400
+Taille base: 25 (attendu: 25)
+Test cycle (BFS/structure): acyclique
+Test connexite (BFS/structure): composantes=1
+
+Potentiels u(i) / v(j)
+u(0)=0, u(1)=-20, u(2)=-30, u(3)=-50, u(4)=-70, u(5)=-90, u(6)=-110, u(7)=-130, u(8)=-150, u(9)=-170
+v(0)=186, v(1)=185, v(2)=184, v(3)=183, v(4)=182, v(5)=181, v(6)=180, v(7)=179, v(8)=178, v(9)=177, v(10)=176, v(11)=175, v(12)=174, v(13)=173, v(14)=172, v(15)=171
+
+Table des couts marginaux (hors base)
+     F/C      C0      C1      C2      C3      C4      C5      C6      C7      C8      C9     C10     C11     C12     C13     C14     C15
+      F0    BASE    BASE       0       0       0       0       0       0    BASE       0       0       0       0       0       0       0
+      F1       0    BASE    BASE    BASE       0       0       0       0       0       0       0       0       0       0       0       0
+      F2       0       0       0    BASE    BASE       0       0       0       0       0       0       0       0       0       0       0
+      F3       0       0       0       0    BASE    BASE    BASE       0       0       0       0       0       0       0       0       0
+      F4       0       0       0       0       0       0    BASE    BASE       0       0       0       0       0       0       0       0
+      F5       0       0       0       0       0       0       0       0    BASE    BASE       0       0       0       0       0       0
+      F6       0       0       0       0       0       0       0       0       0    BASE    BASE    BASE       0       0       0       0
+      F7       0       0       0       0       0       0       0       0       0       0       0    BASE    BASE       0       0       0
+      F8       0       0       0       0       0       0       0       0       0       0       0       0    BASE    BASE    BASE       0
+      F9       0       0       0       0       0       0       0       0       0       0       0       0       0       0    BASE    BASE
+Aucune arete ameliorante detectee: solution optimale.
+
+============================================================
+RESULTAT FINAL
+Cout final: 154400
+Iterations: 1
+Hit max iterations: non
+Validation: OK

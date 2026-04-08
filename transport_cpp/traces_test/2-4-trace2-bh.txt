@@ -1,0 +1,37 @@
+Groupe 2 - Equipe 4 - Probleme 2 - Init balas_hammer
+Fichier source: ../donnees/transport2.txt
+Dimensions: 2x2
+
+Cout initial: 2000
+MARCHE-PIED + POTENTIELS
+Initialisation: balas_hammer
+
+============================================================
+Iteration 1
+
+Matrice transport
+     F/C      C0      C1 Provision
+      F0     100       0       100
+      F1       0     100       100
+Demandes     100     100
+Cout courant: 2000
+Taille base: 3 (attendu: 3)
+Test cycle (BFS/structure): acyclique
+Test connexite (BFS/structure): composantes=1
+
+Potentiels u(i) / v(j)
+u(0)=0, u(1)=-10
+v(0)=10, v(1)=20
+
+Table des couts marginaux (hors base)
+     F/C      C0      C1
+      F0    BASE    BASE
+      F1      30    BASE
+Aucune arete ameliorante detectee: solution optimale.
+
+============================================================
+RESULTAT FINAL
+Cout final: 2000
+Iterations: 1
+Hit max iterations: non
+Validation: OK

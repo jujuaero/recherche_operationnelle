@@ -5,6 +5,7 @@
 #include <deque>
 #include <fstream>
 #include <functional>
+#include <iomanip>
 #include <limits>
 #include <numeric>
 #include <optional>
@@ -722,6 +723,16 @@ SolveResult TransportProblem::steppingStonePotentials(
     int maxIterations,
     bool initializationDone
 ) {
+    std::ostringstream sink;
+    return steppingStoneWithTrace(sink, initialMethod, maxIterations, initializationDone);
+}
+
+SolveResult TransportProblem::steppingStoneWithTrace(
+    std::ostream& trace,
+    const std::string& initialMethod,
+    int maxIterations,
+    bool initializationDone
+) {
     if (!initializationDone) {
         if (initialMethod == "north_west") {
             northWest();
@@ -738,9 +749,96 @@ SolveResult TransportProblem::steppingStonePotentials(
     std::vector<Cell> lastConnectivityAdded;
     std::unordered_set<Cell, CellHash> excludedConnectivityEdges;
 
+    auto printTransportTable = [&]() {
+        trace << "\nMatrice transport\n";
+        trace << std::setw(8) << "F/C";
+        for (int j = 0; j < m; ++j) {
+            trace << std::setw(8) << ("C" + std::to_string(j));
+        }
+        trace << std::setw(10) << "Provision" << "\n";
+
+        for (int i = 0; i < n; ++i) {
+            trace << std::setw(8) << ("F" + std::to_string(i));
+            for (int j = 0; j < m; ++j) {
+                trace << std::setw(8) << transport[i][j];
+            }
+            trace << std::setw(10) << supplies[i] << "\n";
+        }
+
+        trace << std::setw(8) << "Demandes";
+        for (int j = 0; j < m; ++j) {
+            trace << std::setw(8) << demands[j];
+        }
+        trace << "\n";
+    };
+
+    auto printPotentialsTable = [&](const std::vector<int>& u, const std::vector<int>& v) {
+        trace << "\nPotentiels u(i) / v(j)\n";
+        for (int i = 0; i < n; ++i) {
+            trace << "u(" << i << ")=" << u[i] << (i + 1 < n ? ", " : "\n");
+        }
+        for (int j = 0; j < m; ++j) {
+            trace << "v(" << j << ")=" << v[j] << (j + 1 < m ? ", " : "\n");
+        }
+    };
+
+    auto printMarginalsTable = [&](const std::unordered_map<Cell, int, CellHash>& marginals) {
+        trace << "\nTable des couts marginaux (hors base)\n";
+        trace << std::setw(8) << "F/C";
+        for (int j = 0; j < m; ++j) {
+            trace << std::setw(8) << ("C" + std::to_string(j));
+        }
+        trace << "\n";
+
+        for (int i = 0; i < n; ++i) {
+            trace << std::setw(8) << ("F" + std::to_string(i));
+            for (int j = 0; j < m; ++j) {
+                Cell c{i, j};
+                if (basis.find(c) != basis.end()) {
+                    trace << std::setw(8) << "BASE";
+                } else {
+                    auto it = marginals.find(c);
+                    if (it != marginals.end()) {
+                        trace << std::setw(8) << it->second;
+                    } else {
+                        trace << std::setw(8) << "-";
+                    }
+                }
+            }
+            trace << "\n";
+        }
+    };
+
+    trace << "MARCHE-PIED + POTENTIELS\n";
+    trace << "Initialisation: " << initialMethod << "\n";
+
     for (int iter = 1; iter <= maxIterations; ++iter) {
+        trace << "\n============================================================\n";
+        trace << "Iteration " << iter << "\n";
+        printTransportTable();
+        trace << "Cout courant: " << totalCost() << "\n";
+        trace << "Taille base: " << basis.size() << " (attendu: " << (n + m - 1) << ")\n";
+
+        auto cycleBefore = findAnyBasisCycle();
+        trace << "Test cycle (BFS/structure): " << (cycleBefore.empty() ? "acyclique" : "cycle detecte") << "\n";
+        if (!cycleBefore.empty()) {
+            trace << "Cycle detecte: ";
+            for (std::size_t k = 0; k < cycleBefore.size(); ++k) {
+                trace << "(" << cycleBefore[k].i << "," << cycleBefore[k].j << ")";
+                if (k + 1 < cycleBefore.size()) {
+                    trace << " -> ";
+                }
+            }
+            trace << "\n";
+        }
+
+        const int componentsBefore = countBasisComponents();
+        trace << "Test connexite (BFS/structure): composantes=" << componentsBefore << "\n";
+
         auto [u, v] = computePotentials();
         auto marginals = computeMarginals(u, v);
+        printPotentialsTable(u, v);
+        printMarginalsTable(marginals);
 
         bool hasNegative = false;
         Cell entering{-1, -1};
@@ -757,13 +855,25 @@ SolveResult TransportProblem::steppingStonePotentials(
         result.iterations = iter;
         if (!hasNegative) {
             result.hitMaxIterations = false;
+            trace << "Aucune arete ameliorante detectee: solution optimale.\n";
             return result;
         }
+
+        trace << "Arete ameliorante choisie: (" << entering.i << "," << entering.j << ") delta=" << bestDelta << "\n";
 
         const auto cycle = findCycle(entering);
         if (cycle.empty()) {
             throw std::runtime_error("Cycle introuvable pour cellule entrante.");
         }
+
+        trace << "Cycle pour maximisation: ";
+        for (std::size_t k = 0; k < cycle.size(); ++k) {
+            trace << "(" << cycle[k].i << "," << cycle[k].j << ")";
+            if (k + 1 < cycle.size()) {
+                trace << " -> ";
+            }
+        }
+        trace << "\n";
 
         std::vector<Cell> minusCells;
         for (std::size_t k = 1; k + 1 < cycle.size(); k += 2) {
@@ -774,6 +884,7 @@ SolveResult TransportProblem::steppingStonePotentials(
         for (const Cell& c : minusCells) {
             theta = std::min(theta, transport[c.i][c.j]);
         }
+        trace << "Theta (maximisation sur cycle): " << theta << "\n";
 
         basis.insert(entering);
 
@@ -790,6 +901,7 @@ SolveResult TransportProblem::steppingStonePotentials(
             for (const Cell& c : minusCells) {
                 if (transport[c.i][c.j] == 0) {
                     basis.erase(c);
+                    trace << "Arete supprimee apres maximisation: (" << c.i << "," << c.j << ")\n";
                     break;
                 }
             }
@@ -804,14 +916,31 @@ SolveResult TransportProblem::steppingStonePotentials(
                 }
                 basis.erase(e);
                 excludedConnectivityEdges.insert(e);
+                trace << "Delta=0: retrait arete ajoutee lors de la derniere connexite: ("
+                      << e.i << "," << e.j << ")\n";
             }
             lastConnectivityAdded.clear();
         }
 
         enforceAcyclicThenConnected(entering, &lastConnectivityAdded, excludedConnectivityEdges);
+        if (!lastConnectivityAdded.empty()) {
+            trace << "Aretes ajoutees pour connexite: ";
+            for (std::size_t k = 0; k < lastConnectivityAdded.size(); ++k) {
+                const auto& c = lastConnectivityAdded[k];
+                trace << "(" << c.i << "," << c.j << ")";
+                if (k + 1 < lastConnectivityAdded.size()) {
+                    trace << ", ";
+                }
+            }
+            trace << "\n";
+        }
+
+        trace << "Etat post-reparation: cycle=" << (findAnyBasisCycle().empty() ? "non" : "oui")
+              << ", composantes=" << countBasisComponents() << "\n";
     }
 
     result.hitMaxIterations = true;
+    trace << "Arret: max_iterations atteint (" << maxIterations << ").\n";
     return result;
 }
 
