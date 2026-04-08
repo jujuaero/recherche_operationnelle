@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -64,6 +65,17 @@ private:
         const std::vector<int>& v
     ) const;
     std::vector<Cell> findCycle(const Cell& entering) const;
+    std::vector<Cell> findAnyBasisCycle() const;
+    int countBasisComponents() const;
+    std::vector<Cell> addCheapestConnectingEdges(
+        const std::optional<Cell>& protectedEdge,
+        const std::unordered_set<Cell, CellHash>& excludedEdges
+    );
+    void enforceAcyclicThenConnected(
+        const std::optional<Cell>& protectedEdge,
+        std::vector<Cell>* addedForConnectivity,
+        const std::unordered_set<Cell, CellHash>& excludedEdges
+    );
 };
 
 }  // namespace transport

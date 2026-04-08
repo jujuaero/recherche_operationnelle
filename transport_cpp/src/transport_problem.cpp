@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <deque>
 #include <fstream>
 #include <functional>
 #include <limits>
@@ -493,6 +494,229 @@ std::vector<Cell> TransportProblem::findCycle(const Cell& entering) const {
     return {};
 }
 
+std::vector<Cell> TransportProblem::findAnyBasisCycle() const {
+    for (const Cell& c : basis) {
+        auto cycle = findCycle(c);
+        if (!cycle.empty()) {
+            return cycle;
+        }
+    }
+    return {};
+}
+
+int TransportProblem::countBasisComponents() const {
+    const int nodes = n + m;
+    if (nodes == 0) {
+        return 0;
+    }
+
+    std::vector<std::vector<int>> adj(nodes);
+    for (const Cell& c : basis) {
+        int u = c.i;
+        int v = n + c.j;
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+
+    std::vector<char> visited(nodes, 0);
+    int components = 0;
+    for (int s = 0; s < nodes; ++s) {
+        if (visited[s]) {
+            continue;
+        }
+        ++components;
+        std::deque<int> q;
+        q.push_back(s);
+        visited[s] = 1;
+        while (!q.empty()) {
+            int cur = q.front();
+            q.pop_front();
+            for (int nxt : adj[cur]) {
+                if (!visited[nxt]) {
+                    visited[nxt] = 1;
+                    q.push_back(nxt);
+                }
+            }
+        }
+    }
+    return components;
+}
+
+std::vector<Cell> TransportProblem::addCheapestConnectingEdges(
+    const std::optional<Cell>& protectedEdge,
+    const std::unordered_set<Cell, CellHash>& excludedEdges
+) {
+    std::vector<Cell> added;
+
+    while (countBasisComponents() > 1) {
+        struct DSU {
+            std::vector<int> p;
+            explicit DSU(int n) : p(n) {
+                std::iota(p.begin(), p.end(), 0);
+            }
+            int find(int x) {
+                if (p[x] == x) {
+                    return x;
+                }
+                p[x] = find(p[x]);
+                return p[x];
+            }
+            bool unite(int a, int b) {
+                a = find(a);
+                b = find(b);
+                if (a == b) {
+                    return false;
+                }
+                p[b] = a;
+                return true;
+            }
+        };
+
+        DSU dsu(n + m);
+        for (const Cell& e : basis) {
+            dsu.unite(e.i, n + e.j);
+        }
+
+        bool found = false;
+        Cell best{-1, -1};
+        int bestCost = std::numeric_limits<int>::max();
+
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < m; ++j) {
+                Cell c{i, j};
+                if (basis.find(c) != basis.end()) {
+                    continue;
+                }
+                if (excludedEdges.find(c) != excludedEdges.end()) {
+                    continue;
+                }
+                if (protectedEdge.has_value() && c == *protectedEdge) {
+                    continue;
+                }
+
+                int a = dsu.find(i);
+                int b = dsu.find(n + j);
+                if (a == b) {
+                    continue;
+                }
+
+                if (costs[i][j] < bestCost) {
+                    bestCost = costs[i][j];
+                    best = c;
+                    found = true;
+                }
+            }
+        }
+
+        if (!found) {
+            break;
+        }
+
+        basis.insert(best);
+        added.push_back(best);
+    }
+
+    return added;
+}
+
+void TransportProblem::enforceAcyclicThenConnected(
+    const std::optional<Cell>& protectedEdge,
+    std::vector<Cell>* addedForConnectivity,
+    const std::unordered_set<Cell, CellHash>& excludedEdges
+) {
+    // 1) Supprimer les cycles de manière répétée jusqu'à acyclicité.
+    for (int guard = 0; guard < n + m + 32; ++guard) {
+        auto cycle = findAnyBasisCycle();
+        if (cycle.empty()) {
+            break;
+        }
+
+        std::vector<Cell> minusCells;
+        minusCells.reserve(cycle.size() / 2);
+        for (std::size_t k = 1; k + 1 < cycle.size(); k += 2) {
+            minusCells.push_back(cycle[k]);
+        }
+
+        int theta = std::numeric_limits<int>::max();
+        for (const Cell& c : minusCells) {
+            theta = std::min(theta, transport[c.i][c.j]);
+        }
+
+        if (theta > 0 && theta < std::numeric_limits<int>::max()) {
+            for (std::size_t k = 0; k + 1 < cycle.size(); ++k) {
+                const Cell& c = cycle[k];
+                if ((k % 2) == 0) {
+                    transport[c.i][c.j] += theta;
+                } else {
+                    transport[c.i][c.j] -= theta;
+                }
+            }
+
+            bool removed = false;
+            for (const Cell& c : minusCells) {
+                if (transport[c.i][c.j] == 0) {
+                    if (protectedEdge.has_value() && c == *protectedEdge) {
+                        continue;
+                    }
+                    basis.erase(c);
+                    removed = true;
+                    break;
+                }
+            }
+
+            if (!removed) {
+                for (const Cell& c : minusCells) {
+                    if (!(protectedEdge.has_value() && c == *protectedEdge)) {
+                        basis.erase(c);
+                        removed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!removed) {
+                for (std::size_t k = 1; k + 1 < cycle.size(); k += 2) {
+                    const Cell& c = cycle[k];
+                    basis.erase(c);
+                    break;
+                }
+            }
+        } else {
+            // delta=0: casser explicitement le cycle en retirant une arête non protégée.
+            bool removed = false;
+            for (std::size_t k = 1; k + 1 < cycle.size(); k += 2) {
+                const Cell& c = cycle[k];
+                if (protectedEdge.has_value() && c == *protectedEdge) {
+                    continue;
+                }
+                basis.erase(c);
+                removed = true;
+                break;
+            }
+            if (!removed) {
+                for (std::size_t k = 0; k + 1 < cycle.size(); ++k) {
+                    const Cell& c = cycle[k];
+                    if (protectedEdge.has_value() && c == *protectedEdge) {
+                        continue;
+                    }
+                    basis.erase(c);
+                    removed = true;
+                    break;
+                }
+            }
+            if (!removed) {
+                throw std::runtime_error("Impossible de casser un cycle sans retirer l'arete protegee.");
+            }
+        }
+    }
+
+    // 2) Une fois acyclique, compléter pour rendre connexe avec coûts croissants.
+    auto added = addCheapestConnectingEdges(protectedEdge, excludedEdges);
+    if (addedForConnectivity != nullptr) {
+        *addedForConnectivity = added;
+    }
+}
+
 SolveResult TransportProblem::steppingStonePotentials(
     const std::string& initialMethod,
     int maxIterations,
@@ -511,6 +735,9 @@ SolveResult TransportProblem::steppingStonePotentials(
     }
 
     SolveResult result;
+    std::vector<Cell> lastConnectivityAdded;
+    std::unordered_set<Cell, CellHash> excludedConnectivityEdges;
+
     for (int iter = 1; iter <= maxIterations; ++iter) {
         auto [u, v] = computePotentials();
         auto marginals = computeMarginals(u, v);
@@ -548,23 +775,40 @@ SolveResult TransportProblem::steppingStonePotentials(
             theta = std::min(theta, transport[c.i][c.j]);
         }
 
-        for (std::size_t k = 0; k + 1 < cycle.size(); ++k) {
-            const Cell& c = cycle[k];
-            if ((k % 2) == 0) {
-                transport[c.i][c.j] += theta;
-            } else {
-                transport[c.i][c.j] -= theta;
-            }
-        }
-
         basis.insert(entering);
 
-        for (const Cell& c : minusCells) {
-            if (transport[c.i][c.j] == 0) {
-                basis.erase(c);
-                break;
+        if (theta > 0 && theta < std::numeric_limits<int>::max()) {
+            for (std::size_t k = 0; k + 1 < cycle.size(); ++k) {
+                const Cell& c = cycle[k];
+                if ((k % 2) == 0) {
+                    transport[c.i][c.j] += theta;
+                } else {
+                    transport[c.i][c.j] -= theta;
+                }
             }
+
+            for (const Cell& c : minusCells) {
+                if (transport[c.i][c.j] == 0) {
+                    basis.erase(c);
+                    break;
+                }
+            }
+
+            excludedConnectivityEdges.clear();
+        } else {
+            // Cas delta=0: conserver l'arête améliorante et retirer les arêtes
+            // ajoutées lors du dernier test de connexité pour forcer un autre choix.
+            for (const Cell& e : lastConnectivityAdded) {
+                if (e == entering) {
+                    continue;
+                }
+                basis.erase(e);
+                excludedConnectivityEdges.insert(e);
+            }
+            lastConnectivityAdded.clear();
         }
+
+        enforceAcyclicThenConnected(entering, &lastConnectivityAdded, excludedConnectivityEdges);
     }
 
     result.hitMaxIterations = true;
