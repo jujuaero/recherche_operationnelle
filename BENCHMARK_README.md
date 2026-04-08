@@ -12,6 +12,16 @@ resultats_benchmark.csv  → Base de données des résultats (CSV + Pandas)
 
 ## 🚀 Utilisation
 
+### Étude 3.3 du pire des cas
+
+Pour générer les problèmes carrés, mesurer les temps CPU et tracer les nuages de points demandés par l'énoncé:
+
+```bash
+python etude_10.py
+```
+
+Par défaut, le script exécute 100 répétitions pour chaque valeur de `n`, exporte les résultats dans `resultats_etude_10.csv` et sauvegarde les graphiques dans `resultats_etude_10/`.
+
 ### 1. Lancer une campagne de tests
 
 ```bash
@@ -31,6 +41,21 @@ Le script:
 - ✅ Mesure le temps en millisecondes
 - ✅ Valide chaque solution
 - ✅ Sauvegarde incrémentalement dans le CSV
+
+Pendant l'exécution, le processus essaie automatiquement de se fixer sur un cœur performance sur Windows hybride.
+Vous pouvez forcer le comportement via les variables d'environnement suivantes:
+- `RO_CPU_CORE` : `auto` par défaut, ou un index de cœur logique précis si vous voulez forcer un cœur particulier
+- `RO_CPU_HIGH_PRIORITY` : mettre `1` pour passer le processus en priorité élevée
+
+Exemple sous PowerShell:
+
+```powershell
+$env:RO_CPU_CORE = "1"
+$env:RO_CPU_HIGH_PRIORITY = "1"
+python benchmark.py 100
+```
+
+Si vous ne définissez pas `RO_CPU_CORE`, le script tente de choisir automatiquement un cœur performance.
 
 ### 2. Analyser les résultats
 

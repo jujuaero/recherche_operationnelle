@@ -123,6 +123,7 @@ class BenchmarkTransport:
         
         # Exécuter l'algorithme avec timing
         debut = time.perf_counter()
+        max_iterations_marche_pied = max(1000, n * m * 20)
         
         try:
             if algorithme == "nord_ouest":
@@ -135,7 +136,10 @@ class BenchmarkTransport:
                     prob.methode_balas_hammer()
                 else:  # par défaut nord_ouest
                     prob.methode_nord_ouest()
-                prob.methode_marche_pied_potentiels(methode_initiale=initialisation or "nord_ouest", max_iterations=100)
+                prob.methode_marche_pied_potentiels(
+                    methode_initiale=initialisation or "nord_ouest",
+                    max_iterations=max_iterations_marche_pied,
+                )
             
             temps_ms = (time.perf_counter() - debut) * 1000
             cout = prob.cout_total()
@@ -175,65 +179,59 @@ class BenchmarkTransport:
         
         for n, m in configs_dim:
             print(f"\n--- Configuration {n} x {m} ---")
-            
-            # Algorithmes de base
-            for algo in algos:
-                print(f"  {algo}... ", end="", flush=True)
-                success_count = 0
-                
-                for test_nbr in range(nb_tests_par_config):
+
+            success_counts = {
+                "nord_ouest": 0,
+                "balas_hammer": 0,
+                "marche_pied_nord_ouest": 0,
+                "marche_pied_balas_hammer": 0,
+            }
+
+            for test_nbr in range(nb_tests_par_config):
+                # Une seule instance par iteration, partagee entre tous les algos.
+                try:
+                    prob = self._generer_probleme(n, m)
+                except Exception as e:
+                    print(f"\n  [ERROR] Generation echouee: {str(e)[:30]}")
+                    continue
+
+                # Algorithmes de base
+                for algo in algos:
                     test_num += 1
-                    
-                    # Generer un probleme aleatoire
-                    try:
-                        prob = self._generer_probleme(n, m)
-                    except Exception as e:
-                        print(f"\n  [ERROR] Generation echouee: {str(e)[:30]}")
-                        continue
-                    
-                    # Executer le test
                     temps, cout, base_size, valid_ok = self.executer_test(n, m, algo, prob)
-                    
+
                     if temps is not None:
                         self.ajouter_resultat(n, m, algo, temps, cout, base_size, valid_ok)
                         if valid_ok:
-                            success_count += 1
-                    
-                    # Barre de progression
-                    if (test_nbr + 1) % 100 == 0:
-                        print(f"{test_nbr + 1}/{nb_tests_par_config}", end=" ", flush=True)
-                
-                print(f"[OK] ({success_count}/{nb_tests_par_config} valides)")
-            
-            # Marche pied avec differentes initialisations
-            for init in marche_pied_inits:
-                label = f"marche_pied (init:{init})"
-                print(f"  {label}... ", end="", flush=True)
-                success_count = 0
-                
-                for test_nbr in range(nb_tests_par_config):
+                            success_counts[algo] += 1
+
+                # Marche pied avec differentes initialisations
+                for init in marche_pied_inits:
                     test_num += 1
-                    
-                    # Generer un probleme aleatoire
-                    try:
-                        prob = self._generer_probleme(n, m)
-                    except Exception as e:
-                        print(f"\n  [ERROR] Generation echouee: {str(e)[:30]}")
-                        continue
-                    
-                    # Executer le test avec initialisation specifique
-                    temps, cout, base_size, valid_ok = self.executer_test(n, m, "marche_pied", prob, initialisation=init)
-                    
+                    temps, cout, base_size, valid_ok = self.executer_test(
+                        n, m, "marche_pied", prob, initialisation=init
+                    )
+
                     if temps is not None:
-                        self.ajouter_resultat(n, m, "marche_pied", temps, cout, base_size, valid_ok, initialisation=init)
+                        self.ajouter_resultat(
+                            n, m, "marche_pied", temps, cout, base_size, valid_ok, initialisation=init
+                        )
                         if valid_ok:
-                            success_count += 1
-                    
-                    # Barre de progression
-                    if (test_nbr + 1) % 100 == 0:
-                        print(f"{test_nbr + 1}/{nb_tests_par_config}", end=" ", flush=True)
-                
-                print(f"[OK] ({success_count}/{nb_tests_par_config} valides)")
+                            success_counts[f"marche_pied_{init}"] += 1
+
+                if (test_nbr + 1) % 100 == 0:
+                    print(f"  progression: {test_nbr + 1}/{nb_tests_par_config}", flush=True)
+
+            print(f"  nord_ouest: [OK] ({success_counts['nord_ouest']}/{nb_tests_par_config} valides)")
+            print(f"  balas_hammer: [OK] ({success_counts['balas_hammer']}/{nb_tests_par_config} valides)")
+            print(
+                f"  marche_pied (init:nord_ouest): [OK] "
+                f"({success_counts['marche_pied_nord_ouest']}/{nb_tests_par_config} valides)"
+            )
+            print(
+                f"  marche_pied (init:balas_hammer): [OK] "
+                f"({success_counts['marche_pied_balas_hammer']}/{nb_tests_par_config} valides)"
+            )
         
         print(f"\n{'='*80}")
         print(f"Benchmark termine !")
