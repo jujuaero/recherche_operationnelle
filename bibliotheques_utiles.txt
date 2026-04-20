@@ -1,8 +1,0 @@
-A installer (analyse et visualisation):
-- pandas
-- numpy
-- matplotlib
-- seaborn
-
-Commande:
-pip install pandas numpy matplotlib seaborn
