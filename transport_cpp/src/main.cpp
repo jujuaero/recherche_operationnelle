@@ -1,8 +1,8 @@
 #include <iostream>
 #include <string>
 
-#include "generator.hpp"
-#include "transport_problem.hpp"
+#include "../include/generator.hpp"
+#include "../include/transport_problem.hpp"
 
 using transport::TransportProblem;
 
