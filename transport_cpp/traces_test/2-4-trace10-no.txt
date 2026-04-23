@@ -1,0 +1,96 @@
+Groupe 2 - Equipe 4 - Probleme 10 - Init north_west
+Fichier source: ../donnees/transport10.txt
+Dimensions: 3x7
+
+Cout initial: 218500
+MARCHE-PIED + POTENTIELS
+Initialisation: north_west
+
+============================================================
+Iteration 1
+
+Matrice transport
+     F/C      C0      C1      C2      C3      C4      C5      C6 Provision
+      F0     500       0       0       0       0       0       0       500
+      F1       0     500       0       0       0       0       0       500
+      F2       0       0     500     500     500     500     500      2500
+Demandes     500     500     500     500     500     500     500
+Cout courant: 218500
+Taille base: 9 (attendu: 9)
+Test cycle (BFS/structure): acyclique
+Test connexite (BFS/structure): composantes=1
+
+Potentiels u(i) / v(j)
+u(0)=0, u(1)=-299, u(2)=-309
+v(0)=300, v(1)=349, v(2)=339, v(3)=312, v(4)=334, v(5)=335, v(6)=312
+
+Table des couts marginaux (hors base)
+     F/C      C0      C1      C2      C3      C4      C5      C6
+      F0    BASE    -329    -324    -296    -317    -317    -292
+      F1    BASE    BASE     -16      17     -13      -9       6
+      F2      59    BASE    BASE    BASE    BASE    BASE    BASE
+Arete ameliorante choisie: (0,1) delta=-329
+Cycle pour maximisation: (0,1) -> (0,0) -> (1,0) -> (1,1) -> (0,1)
+Theta (maximisation sur cycle): 500
+Arete supprimee apres maximisation: (0,0)
+Etat post-reparation: cycle=non, composantes=1
+
+============================================================
+Iteration 2
+
+Matrice transport
+     F/C      C0      C1      C2      C3      C4      C5      C6 Provision
+      F0       0     500       0       0       0       0       0       500
+      F1     500       0       0       0       0       0       0       500
+      F2       0       0     500     500     500     500     500      2500
+Demandes     500     500     500     500     500     500     500
+Cout courant: 54000
+Taille base: 9 (attendu: 9)
+Test cycle (BFS/structure): acyclique
+Test connexite (BFS/structure): composantes=1
+
+Potentiels u(i) / v(j)
+u(0)=0, u(1)=30, u(2)=20
+v(0)=-29, v(1)=20, v(2)=10, v(3)=-17, v(4)=5, v(5)=6, v(6)=-17
+
+Table des couts marginaux (hors base)
+     F/C      C0      C1      C2      C3      C4      C5      C6
+      F0     329    BASE       5      33      12      12      37
+      F1    BASE    BASE     -16      17     -13      -9       6
+      F2      59    BASE    BASE    BASE    BASE    BASE    BASE
+Arete ameliorante choisie: (1,2) delta=-16
+Cycle pour maximisation: (1,2) -> (1,1) -> (2,1) -> (2,2) -> (1,2)
+Theta (maximisation sur cycle): 0
+Etat post-reparation: cycle=non, composantes=1
+
+============================================================
+Iteration 3
+
+Matrice transport
+     F/C      C0      C1      C2      C3      C4      C5      C6 Provision
+      F0       0     500       0       0       0       0       0       500
+      F1     500       0       0       0       0       0       0       500
+      F2       0       0     500     500     500     500     500      2500
+Demandes     500     500     500     500     500     500     500
+Cout courant: 54000
+Taille base: 9 (attendu: 9)
+Test cycle (BFS/structure): acyclique
+Test connexite (BFS/structure): composantes=1
+
+Potentiels u(i) / v(j)
+u(0)=0, u(1)=14, u(2)=20
+v(0)=-13, v(1)=20, v(2)=10, v(3)=-17, v(4)=5, v(5)=6, v(6)=-17
+
+Table des couts marginaux (hors base)
+     F/C      C0      C1      C2      C3      C4      C5      C6
+      F0     313    BASE       5      33      12      12      37
+      F1    BASE      16    BASE      33       3       7      22
+      F2      43    BASE    BASE    BASE    BASE    BASE    BASE
+Aucune arete ameliorante detectee: solution optimale.
+
+============================================================
+RESULTAT FINAL
+Cout final: 54000
+Iterations: 3
+Hit max iterations: non
+Validation: OK

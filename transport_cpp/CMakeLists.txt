@@ -20,3 +20,6 @@ target_link_libraries(transport_benchmark PRIVATE transport_lib)
 
 add_executable(transport_etude10 src/etude10_main.cpp)
 target_link_libraries(transport_etude10 PRIVATE transport_lib)
+
+add_executable(transport_traces src/traces_main.cpp)
+target_link_libraries(transport_traces PRIVATE transport_lib)

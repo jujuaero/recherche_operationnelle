@@ -1,0 +1,64 @@
+Groupe 2 - Equipe 4 - Probleme 4 - Init north_west
+Fichier source: ../donnees/transport4.txt
+Dimensions: 2x2
+
+Cout initial: 18500
+MARCHE-PIED + POTENTIELS
+Initialisation: north_west
+
+============================================================
+Iteration 1
+
+Matrice transport
+     F/C      C0      C1 Provision
+      F0     100     500       600
+      F1       0     500       500
+Demandes     100    1000
+Cout courant: 18500
+Taille base: 3 (attendu: 3)
+Test cycle (BFS/structure): acyclique
+Test connexite (BFS/structure): composantes=1
+
+Potentiels u(i) / v(j)
+u(0)=0, u(1)=29
+v(0)=30, v(1)=1
+
+Table des couts marginaux (hors base)
+     F/C      C0      C1
+      F0    BASE    BASE
+      F1     -58    BASE
+Arete ameliorante choisie: (1,0) delta=-58
+Cycle pour maximisation: (1,0) -> (1,1) -> (0,1) -> (0,0) -> (1,0)
+Theta (maximisation sur cycle): 100
+Arete supprimee apres maximisation: (0,0)
+Etat post-reparation: cycle=non, composantes=1
+
+============================================================
+Iteration 2
+
+Matrice transport
+     F/C      C0      C1 Provision
+      F0       0     600       600
+      F1     100     400       500
+Demandes     100    1000
+Cout courant: 12700
+Taille base: 3 (attendu: 3)
+Test cycle (BFS/structure): acyclique
+Test connexite (BFS/structure): composantes=1
+
+Potentiels u(i) / v(j)
+u(0)=0, u(1)=29
+v(0)=-28, v(1)=1
+
+Table des couts marginaux (hors base)
+     F/C      C0      C1
+      F0      58    BASE
+      F1    BASE    BASE
+Aucune arete ameliorante detectee: solution optimale.
+
+============================================================
+RESULTAT FINAL
+Cout final: 12700
+Iterations: 2
+Hit max iterations: non
+Validation: OK

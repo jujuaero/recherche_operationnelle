@@ -1,0 +1,10 @@
+Complexite pire des cas (enveloppe superieure)
+
+Nombre de lignes mesurees: 3
+
+- theta_NO_s: O(n)
+- theta_BH_s: O(n^2)
+- t_NO_s: O(n^2)
+- t_BH_s: O(k^n)
+- theta_plus_t_NO_s: O(n^2)
+- theta_plus_t_BH_s: O(k^n)
