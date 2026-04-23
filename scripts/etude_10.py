@@ -18,8 +18,15 @@ import seaborn as sns
 from structure import ProblemeTransport
 
 
-N_VALS = [10, 40]
-NB_REPETITIONS = 100
+# Configuration progressive des tailles avec itérations adaptées
+CONFIG_SIZES = {
+    10: 100,
+    40: 100,
+    100: 100,
+    400: 50,
+    
+}
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = PROJECT_ROOT / "results" / "etude_10"
 FICHIER_RESULTATS = RESULTS_DIR / "resultats_etude_10.csv"
@@ -101,29 +108,50 @@ def mesurer_une_realisation(probleme: ProblemeTransport) -> dict:
     return resultat
 
 
-def executer_etude(nb_repetitions: int = NB_REPETITIONS) -> pd.DataFrame:
-    """Exécute l'étude complète et retourne le tableau de résultats."""
+def executer_etude(config_sizes: dict = None) -> pd.DataFrame:
+    """Exécute l'étude complète avec tailles et répétitions adaptées.
+    
+    Args:
+        config_sizes: dict mapping {taille -> nb_repetitions}. 
+                     Par défaut utilise CONFIG_SIZES global.
+    """
+    if config_sizes is None:
+        config_sizes = CONFIG_SIZES
+    
     lignes = []
+    total_configs = len(config_sizes)
+    
+    print(f"\n{'='*80}")
+    print(f"ÉTUDE DE COMPLEXITÉ PROGRESSIVE")
+    print(f"{'='*80}")
+    print(f"Configurations à tester: {total_configs}")
+    print(f"Tailles: {sorted(config_sizes.keys())}\n")
 
-    for n in N_VALS:
-        print(f"\n--- Taille n = {n} ---")
+    for idx, (n, nb_repetitions) in enumerate(sorted(config_sizes.items()), 1):
+        print(f"\n[{idx}/{total_configs}] Taille n = {n:5d} ({nb_repetitions} répétitions)")
+        
         for repetition in range(1, nb_repetitions + 1):
-            probleme = generer_probleme_carre(n)
-            mesures = mesurer_une_realisation(probleme)
-            ligne = {
-                "n": n,
-                "repetition": repetition,
-                **mesures,
-            }
-            lignes.append(ligne)
+            try:
+                probleme = generer_probleme_carre(n)
+                mesures = mesurer_une_realisation(probleme)
+                ligne = {
+                    "n": n,
+                    "repetition": repetition,
+                    **mesures,
+                }
+                lignes.append(ligne)
+            except Exception as e:
+                print(f"  [ERREUR] Répétition {repetition}/{nb_repetitions}: {str(e)[:40]}")
+                continue
 
-            if repetition % 10 == 0:
-                print(f"  {repetition}/{nb_repetitions}")
+            if repetition % max(1, nb_repetitions // 5) == 0:
+                progress_pct = (repetition / nb_repetitions) * 100
+                print(f"  Progression: {repetition}/{nb_repetitions} ({progress_pct:.0f}%)")
 
     df = pd.DataFrame(lignes)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(FICHIER_RESULTATS, index=False)
-    print(f"\n[OK] Résultats exportés vers {FICHIER_RESULTATS}")
+    print(f"\n[OK] {len(df)} résultats exportés vers {FICHIER_RESULTATS}")
     return df
 
 
@@ -189,6 +217,70 @@ def tracer_maxima(df: pd.DataFrame) -> pd.DataFrame:
     return maxima
 
 
+def tracer_vues_benchmark(df: pd.DataFrame) -> None:
+    """Ajoute des vues synthétiques inspirées du benchmark pour le rapport."""
+    df_melt = _melt_resultats(df)
+
+    # 1) Courbes de tendance (moyenne et dispersion) par n et mesure.
+    plt.figure(figsize=(12, 7))
+    sns.lineplot(
+        data=df_melt,
+        x="n",
+        y="temps_s",
+        hue="mesure",
+        estimator="mean",
+        errorbar="sd",
+        marker="o",
+    )
+    plt.title("Tendance moyenne des temps CPU (style benchmark)")
+    plt.xlabel("n")
+    plt.ylabel("Temps CPU (s)")
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    DOSSIER_SORTIE.mkdir(exist_ok=True)
+    chemin = DOSSIER_SORTIE / "benchmark_style_tendance.png"
+    plt.savefig(chemin, dpi=160)
+    print(f"[OK] Graphique sauvegardé: {chemin}")
+    plt.show()
+
+    # 2) Boîtes à moustaches pour visualiser la variabilité par taille.
+    focus = df_melt[df_melt["mesure"].isin(["theta_plus_t_NO_s", "theta_plus_t_BH_s"])]
+    plt.figure(figsize=(12, 7))
+    sns.boxplot(data=focus, x="n", y="temps_s", hue="mesure")
+    plt.title("Distribution des temps complets par taille (style benchmark)")
+    plt.xlabel("n")
+    plt.ylabel("Temps CPU (s)")
+    plt.grid(True, axis="y", alpha=0.25)
+    plt.tight_layout()
+    chemin = DOSSIER_SORTIE / "benchmark_style_boites.png"
+    plt.savefig(chemin, dpi=160)
+    print(f"[OK] Graphique sauvegardé: {chemin}")
+    plt.show()
+
+    # 3) Trade-off NO vs BH sur les temps complets (points individuels).
+    plt.figure(figsize=(10, 7))
+    sns.scatterplot(
+        data=df,
+        x="theta_plus_t_NO_s",
+        y="theta_plus_t_BH_s",
+        hue="n",
+        palette="viridis",
+        alpha=0.7,
+        s=35,
+    )
+    borne = max(df["theta_plus_t_NO_s"].max(), df["theta_plus_t_BH_s"].max())
+    plt.plot([0, borne], [0, borne], linestyle="--", color="gray", linewidth=1)
+    plt.title("Comparaison NO vs BH (temps complets)")
+    plt.xlabel("theta + t avec initialisation Nord-Ouest (s)")
+    plt.ylabel("theta + t avec initialisation Balas-Hammer (s)")
+    plt.grid(True, alpha=0.25)
+    plt.tight_layout()
+    chemin = DOSSIER_SORTIE / "benchmark_style_tradeoff_no_vs_bh.png"
+    plt.savefig(chemin, dpi=160)
+    print(f"[OK] Graphique sauvegardé: {chemin}")
+    plt.show()
+
+
 def imprimer_resume(maxima: pd.DataFrame) -> None:
     """Affiche un résumé simple des maxima observés."""
     print("\nRÉSUMÉ DES MAXIMA")
@@ -202,20 +294,29 @@ def imprimer_resume(maxima: pd.DataFrame) -> None:
 
 
 def main():
+    """Exécute l'étude complète avec configuration progressive."""
     import sys
-
-    nb_repetitions = NB_REPETITIONS
-    if len(sys.argv) > 1:
-        try:
-            nb_repetitions = int(sys.argv[1])
-        except ValueError:
-            print("Usage: python etude_10.py [nombre_de_repetitions]")
-            raise SystemExit(1)
-
-    df = executer_etude(nb_repetitions=nb_repetitions)
+    
+    config = CONFIG_SIZES.copy()
+    
+    # Optionnel: permettre de surcharger certaines tailles via CLI
+    if len(sys.argv) > 1 and sys.argv[1] == "--quick":
+        # Mode rapide pour tester: seulement petites et moyennes
+        config = {k: v for k, v in config.items() if k <= 500}
+        print("[INFO] Mode RAPIDE: seulement tailles <= 500")
+    
+    df = executer_etude(config_sizes=config)
+    
+    print(f"\n{'='*80}")
+    print("GÉNÉRATION DES GRAPHIQUES")
+    print(f"{'='*80}")
+    
     tracer_nuages(df)
     maxima = tracer_maxima(df)
+    tracer_vues_benchmark(df)
     imprimer_resume(maxima)
+    
+    print(f"\n[OK] Étude complète terminée !")
 
 
 if __name__ == "__main__":

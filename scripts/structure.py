@@ -3,157 +3,12 @@ Structure de données pour le problème de transport.
 Gère la matrice des coûts, les provisions, les commandes et la matrice de transport.
 """
 
-import ctypes
-import os
-from ctypes import wintypes
-from copy import deepcopy
 from pathlib import Path
 
 
-_AFFINITE_CPU_ETAT = None
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_INPUT_DIR = PROJECT_ROOT / "data" / "input"
 DATA_GENERATED_DIR = PROJECT_ROOT / "data" / "generated"
-
-
-def _configuration_affinite_cpu():
-    """Lit la configuration d'affinité CPU depuis les variables d'environnement."""
-    valeur_coeur = os.environ.get("RO_CPU_CORE", "auto").strip().lower()
-    if valeur_coeur in {"", "auto", "performance", "perf", "p"}:
-        coeur = None
-    else:
-        try:
-            coeur = int(valeur_coeur)
-        except ValueError:
-            print(f"[WARNING] RO_CPU_CORE invalide ({valeur_coeur}); sélection automatique du cœur performance.")
-            coeur = None
-
-    priorite_elevee = os.environ.get("RO_CPU_HIGH_PRIORITY", "0") == "1"
-    return coeur, priorite_elevee
-
-
-def _selectionner_coeur_performance_windows():
-    """Retourne le cœur performance le plus adapté détecté sur Windows."""
-    kernel32 = ctypes.windll.kernel32
-
-    # Prototype: BOOL GetSystemCpuSetInformation(...)
-    get_cpu_sets = kernel32.GetSystemCpuSetInformation
-    get_cpu_sets.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.POINTER(ctypes.c_ulong), ctypes.c_void_p, ctypes.c_ulong]
-    get_cpu_sets.restype = wintypes.BOOL
-
-    taille_requise = ctypes.c_ulong(0)
-    get_cpu_sets(None, 0, ctypes.byref(taille_requise), None, 0)
-
-    if taille_requise.value == 0:
-        return None
-
-    buffer = ctypes.create_string_buffer(taille_requise.value)
-    resultat = get_cpu_sets(buffer, taille_requise.value, ctypes.byref(taille_requise), None, 0)
-    if not resultat:
-        raise ctypes.WinError(ctypes.get_last_error())
-
-    donnees = buffer.raw[:taille_requise.value]
-    meilleur = None
-
-    offset = 0
-    while offset + 8 <= len(donnees):
-        taille_entree = int.from_bytes(donnees[offset:offset + 4], "little")
-        type_entree = int.from_bytes(donnees[offset + 4:offset + 8], "little")
-
-        if taille_entree <= 0:
-            break
-
-        if type_entree == 0 and taille_entree >= 32:
-            cpu_id = int.from_bytes(donnees[offset + 8:offset + 12], "little")
-            groupe = int.from_bytes(donnees[offset + 12:offset + 14], "little")
-            logique = donnees[offset + 14]
-            efficacite = donnees[offset + 18]
-            flags = donnees[offset + 19]
-            parke = bool(flags & 0x01)
-
-            candidat = (efficacite, not parke, groupe, logique, cpu_id)
-            if meilleur is None or candidat > meilleur[0]:
-                meilleur = (candidat, groupe, logique, cpu_id, efficacite, parke)
-
-        offset += taille_entree
-
-    if meilleur is None:
-        return None
-
-    _, groupe, logique, cpu_id, efficacite, parke = meilleur
-    masque = 1 << logique
-    return [(groupe, masque, cpu_id, efficacite, parke)]
-
-
-def reserver_coeur_cpu(coeur=None, priorite_elevee=False):
-    """Réserve un cœur CPU pour le processus courant, si le système le permet."""
-    global _AFFINITE_CPU_ETAT
-
-    if _AFFINITE_CPU_ETAT is not None:
-        return _AFFINITE_CPU_ETAT
-
-    nb_coeurs = os.cpu_count() or 1
-
-    try:
-        if os.name == "nt":
-            kernel32 = ctypes.windll.kernel32
-            kernel32.GetCurrentThread.restype = wintypes.HANDLE
-            kernel32.SetThreadAffinityMask.argtypes = [wintypes.HANDLE, ctypes.c_size_t]
-            kernel32.SetThreadAffinityMask.restype = ctypes.c_size_t
-            kernel32.SetPriorityClass.argtypes = [wintypes.HANDLE, wintypes.DWORD]
-            kernel32.SetPriorityClass.restype = wintypes.BOOL
-            description = None
-            thread_handle = kernel32.GetCurrentThread()
-
-            if coeur is None:
-                cible = _selectionner_coeur_performance_windows()
-                if cible:
-                    groupe, masque, cpu_id, efficacite, parke = cible[0]
-                    if not kernel32.SetThreadAffinityMask(thread_handle, masque):
-                        raise OSError("SetThreadAffinityMask a echoue")
-                    etat_parking = "non parké" if not parke else "parké"
-                    description = (
-                        f"cœur performance détecté (cpu_set={cpu_id}, groupe {groupe}, "
-                        f"efficiency={efficacite}, {etat_parking}, masque {masque:#x})"
-                    )
-                else:
-                    coeur = 0
-
-            if coeur is not None:
-                if coeur < 0 or coeur >= nb_coeurs:
-                    print(f"[WARNING] Coeur CPU {coeur} invalide (0-{nb_coeurs - 1}).")
-                    _AFFINITE_CPU_ETAT = False
-                    return False
-
-                masque = 1 << coeur
-                if not kernel32.SetThreadAffinityMask(thread_handle, masque):
-                    raise OSError("SetThreadAffinityMask a echoue")
-                description = f"coeur CPU {coeur}"
-
-            if priorite_elevee:
-                HIGH_PRIORITY_CLASS = 0x00000080
-                if not kernel32.SetPriorityClass(kernel32.GetCurrentProcess(), HIGH_PRIORITY_CLASS):
-                    raise OSError("SetPriorityClass a echoue")
-
-        elif hasattr(os, "sched_setaffinity"):
-            cible = 0 if coeur is None else coeur
-            os.sched_setaffinity(0, {cible})
-            description = f"coeur CPU {cible}"
-        else:
-            print("[WARNING] Affinite CPU non supportee sur cette plateforme.")
-            _AFFINITE_CPU_ETAT = False
-            return False
-
-        _AFFINITE_CPU_ETAT = True
-        print(f"[OK] Processus limite au {description}.")
-        if priorite_elevee:
-            print("[OK] Priorite du processus elevee.")
-        return True
-
-    except Exception as e:
-        print(f"[WARNING] Impossible de fixer l'affinite CPU: {e}")
-        _AFFINITE_CPU_ETAT = False
-        return False
 
 
 class ProblemeTransport:
@@ -329,9 +184,6 @@ class ProblemeTransport:
         Returns:
             str: resume textuel des allocations effectuees.
         """
-        coeur_cpu, priorite_elevee = _configuration_affinite_cpu()
-        reserver_coeur_cpu(coeur=coeur_cpu, priorite_elevee=priorite_elevee)
-
         if self.n == 0 or self.m == 0:
             raise ValueError("Probleme vide: dimensions invalides.")
 
@@ -395,9 +247,6 @@ class ProblemeTransport:
         Returns:
             str: resume textuel des etapes et du cout obtenu.
         """
-        coeur_cpu, priorite_elevee = _configuration_affinite_cpu()
-        reserver_coeur_cpu(coeur=coeur_cpu, priorite_elevee=priorite_elevee)
-
         if self.n == 0 or self.m == 0:
             raise ValueError("Probleme vide: dimensions invalides.")
 
@@ -617,9 +466,6 @@ class ProblemeTransport:
         Returns:
             str: résumé des itérations d'optimisation.
         """
-        coeur_cpu, priorite_elevee = _configuration_affinite_cpu()
-        reserver_coeur_cpu(coeur=coeur_cpu, priorite_elevee=priorite_elevee)
-
         if initialisation_deja_faite:
             if not self.base:
                 raise ValueError(
