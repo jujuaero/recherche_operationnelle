@@ -27,7 +27,7 @@ try {
             throw "Executable manquant: .\bin\transport_traces.exe."
         }
         Write-Host "`n=== Generation des traces ==="
-        & ".\bin\transport_traces.exe" $GroupId $TeamId "traces"
+        & ".\bin\transport_traces.exe" $GroupId $TeamId "results/traces"
         if ($LASTEXITCODE -ne 0) {
             throw "Echec transport_traces.exe"
         }

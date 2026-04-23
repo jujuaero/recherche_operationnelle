@@ -49,9 +49,9 @@ def classify_complexity_from_maxima(n_values, t_values):
 
 
 def main():
-    csv_path = Path("resultats_etude10_cpp.csv")
+    csv_path = Path("results/etude10/resultats_etude10_cpp.csv")
     if not csv_path.exists():
-        raise FileNotFoundError("resultats_etude10_cpp.csv introuvable")
+        raise FileNotFoundError("results/etude10/resultats_etude10_cpp.csv introuvable")
 
     df = pd.read_csv(csv_path)
 
@@ -79,7 +79,7 @@ def main():
 
     # Maxima par n (enveloppe supérieure du nuage)
     max_df = df.groupby("n", as_index=False)[metrics].max().sort_values("n")
-    out_dir = Path("resultats_etude10")
+    out_dir = Path("results/etude10")
     out_dir.mkdir(exist_ok=True)
     max_df.to_csv(out_dir / "maxima_etude10_cpp.csv", index=False)
 

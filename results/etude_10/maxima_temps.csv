@@ -1,0 +1,13 @@
+n,mesure,temps_max_s
+10,t_BH_s,0.015625
+10,t_NO_s,0.015625
+10,theta_BH_s,0.015625
+10,theta_NO_s,0.0
+10,theta_plus_t_BH_s,0.015625
+10,theta_plus_t_NO_s,0.015625
+40,t_BH_s,0.046875
+40,t_NO_s,0.40625
+40,theta_BH_s,0.015625
+40,theta_NO_s,0.015625
+40,theta_plus_t_BH_s,0.0625
+40,theta_plus_t_NO_s,0.40625

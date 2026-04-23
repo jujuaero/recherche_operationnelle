@@ -8,6 +8,11 @@ Réécriture C++ du projet de transport (algorithmes + benchmark + étude 3.3) d
 - `transport_benchmark` : campagne benchmark type projet Python.
 - `transport_etude10` : étude 3.3 (`n = 10, 40, 100, 400, 1000, 4000, 10000`).
 - `transport_traces` : génération automatique des traces demandées (12 problèmes, NO + BH).
+- `results/benchmark/` : sortie du benchmark C++.
+- `results/etude10/` : sortie de l'étude 10 C++.
+- `results/traces/` : traces générées par `transport_traces`.
+- `results/traces_test/` : traces de test et archives de validation.
+- `../data/input/` : problèmes d'entrée de référence utilisés par les traces.
 
 ## Build (PowerShell)
 
@@ -35,7 +40,7 @@ CLI solveur:
 ```powershell
 .\build\Release\transport_cli.exe random 10 10
 # ou
-.\build\Release\transport_cli.exe file ..\donnees\transport1.txt
+.\build\Release\transport_cli.exe file ..\data\input\transport1.txt
 ```
 
 Benchmark:
@@ -44,7 +49,7 @@ Benchmark:
 .\build\Release\transport_benchmark.exe 100
 ```
 
-Sortie: `resultats_benchmark_cpp.csv`
+Sortie: `results\benchmark\resultats_benchmark_cpp.csv`
 
 Étude 3.3:
 
@@ -63,22 +68,22 @@ Optionnel: limiter les tailles jusqu'à `n_max` pour un run progressif:
 Génération des 24 traces (12 problèmes x NO/BH) avec format de nom demandé:
 
 ```powershell
-.\build\Release\transport_traces.exe 2 4 traces
+.\build\Release\transport_traces.exe 2 4 results\traces
 ```
 
-Sortie exemple: `2-4-trace5-no.txt`, `2-4-trace5-bh.txt`.
+Sortie exemple: `results\traces\2-4-trace5-no.txt`, `results\traces\2-4-trace5-bh.txt`.
 
 ## Campagne progressive et reprise
 
 Script PowerShell prêt à l'emploi:
 
 ```powershell
-.	ools\run_campaign.ps1 -Repetitions 100 -Stages 100,400,1000 -RunTraces -GroupId 2 -TeamId 4
+.\tools\run_campaign.ps1 -Repetitions 100 -Stages 100,400,1000 -RunTraces -GroupId 2 -TeamId 4
 ```
 
 Le script enchaîne les stages d'étude, génère les traces et lance l'analyse des maxima/classification.
 
-Sortie: `resultats_etude10_cpp.csv`
+Sortie: `results\etude10\resultats_etude10_cpp.csv`
 
 ## Remarques
 

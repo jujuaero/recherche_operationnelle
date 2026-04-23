@@ -1,4 +1,5 @@
 #include <ctime>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -25,7 +26,8 @@ int main(int argc, char** argv) {
 
     const std::vector<int> nValues = {10, 40, 100, 400, 1000, 4000, 10000};
 
-    std::ofstream out("resultats_etude10_cpp.csv");
+    std::filesystem::create_directories("results/etude10");
+    std::ofstream out("results/etude10/resultats_etude10_cpp.csv");
     out << "n,repetition,theta_NO_s,theta_BH_s,t_NO_s,t_BH_s,theta_plus_t_NO_s,theta_plus_t_BH_s\n";
 
     for (int n : nValues) {
@@ -75,6 +77,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::cout << "\nResultats sauvegardes: resultats_etude10_cpp.csv\n";
+    std::cout << "\nResultats sauvegardes: results/etude10/resultats_etude10_cpp.csv\n";
     return 0;
 }

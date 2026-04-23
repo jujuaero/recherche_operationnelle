@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     try {
         int groupId = 2;
         int teamId = 4;
-        std::string outputDir = "traces";
+        std::string outputDir = "results/traces";
 
         if (argc >= 2) {
             groupId = std::stoi(argv[1]);
@@ -26,10 +26,10 @@ int main(int argc, char** argv) {
         std::filesystem::create_directories(outputDir);
 
         for (int problemId = 1; problemId <= 12; ++problemId) {
-            std::string inputPath = "../donnees/transport" + std::to_string(problemId) + ".txt";
+            std::string inputPath = "../data/input/transport" + std::to_string(problemId) + ".txt";
             if (!std::filesystem::exists(inputPath)) {
                 // fallback when launched from workspace root
-                inputPath = "donnees/transport" + std::to_string(problemId) + ".txt";
+                inputPath = "data/input/transport" + std::to_string(problemId) + ".txt";
             }
 
             TransportProblem original = TransportProblem::loadFromFile(inputPath);

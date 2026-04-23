@@ -1,4 +1,5 @@
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -33,7 +34,8 @@ int main(int argc, char** argv) {
         {5, 5}, {5, 10}, {10, 5}, {10, 10}, {15, 15}, {20, 20}
     };
 
-    std::ofstream out("resultats_benchmark_cpp.csv");
+    std::filesystem::create_directories("results/benchmark");
+    std::ofstream out("results/benchmark/resultats_benchmark_cpp.csv");
     out << "test_id,n,m,algorithme,initialisation,temps_ms,cout_total,base_size,validations_ok\n";
 
     int testId = 0;
@@ -89,6 +91,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::cout << "Resultats sauvegardes: resultats_benchmark_cpp.csv\n";
+    std::cout << "Resultats sauvegardes: results/benchmark/resultats_benchmark_cpp.csv\n";
     return 0;
 }
