@@ -748,6 +748,7 @@ SolveResult TransportProblem::steppingStoneWithTrace(
     SolveResult result;
     std::vector<Cell> lastConnectivityAdded;
     std::unordered_set<Cell, CellHash> excludedConnectivityEdges;
+    std::unordered_set<Cell, CellHash> degenerateTabuEnterings;
 
     auto printTransportTable = [&]() {
         trace << "\nMatrice transport\n";
@@ -840,57 +841,114 @@ SolveResult TransportProblem::steppingStoneWithTrace(
         printPotentialsTable(u, v);
         printMarginalsTable(marginals);
 
-        bool hasNegative = false;
-        Cell entering{-1, -1};
-        int bestDelta = std::numeric_limits<int>::max();
-
+        std::vector<std::pair<Cell, int>> negativeCandidates;
+        negativeCandidates.reserve(marginals.size());
         for (const auto& kv : marginals) {
-            if (kv.second < 0 && kv.second < bestDelta) {
-                hasNegative = true;
-                entering = kv.first;
-                bestDelta = kv.second;
+            if (kv.second < 0) {
+                negativeCandidates.push_back(kv);
             }
         }
 
         result.iterations = iter;
-        if (!hasNegative) {
+        if (negativeCandidates.empty()) {
             result.hitMaxIterations = false;
             trace << "Aucune arete ameliorante detectee: solution optimale.\n";
             return result;
         }
 
-        trace << "Arete ameliorante choisie: (" << entering.i << "," << entering.j << ") delta=" << bestDelta << "\n";
+        std::sort(
+            negativeCandidates.begin(),
+            negativeCandidates.end(),
+            [](const std::pair<Cell, int>& a, const std::pair<Cell, int>& b) {
+                return a.second < b.second;
+            }
+        );
 
-        const auto cycle = findCycle(entering);
-        if (cycle.empty()) {
-            throw std::runtime_error("Cycle introuvable pour cellule entrante.");
+        bool appliedPivot = false;
+        bool degeneratePivot = false;
+        Cell entering{-1, -1};
+        int bestDelta = 0;
+        std::vector<Cell> selectedCycle;
+        std::vector<Cell> minusCells;
+        int theta = 0;
+        Cell leavingDegenerate{-1, -1};
+
+        for (const auto& candidate : negativeCandidates) {
+            if (degenerateTabuEnterings.find(candidate.first) != degenerateTabuEnterings.end()) {
+                continue;
+            }
+
+            entering = candidate.first;
+            bestDelta = candidate.second;
+
+            const auto cycle = findCycle(entering);
+            if (cycle.empty()) {
+                trace << "Cycle introuvable pour candidate (" << entering.i << "," << entering.j
+                      << "), candidate ignoree.\n";
+                continue;
+            }
+
+            std::vector<Cell> candidateMinusCells;
+            for (std::size_t k = 1; k + 1 < cycle.size(); k += 2) {
+                candidateMinusCells.push_back(cycle[k]);
+            }
+
+            int candidateTheta = std::numeric_limits<int>::max();
+            for (const Cell& c : candidateMinusCells) {
+                candidateTheta = std::min(candidateTheta, transport[c.i][c.j]);
+            }
+
+            if (candidateTheta == std::numeric_limits<int>::max()) {
+                continue;
+            }
+
+            selectedCycle = cycle;
+            minusCells = std::move(candidateMinusCells);
+            theta = candidateTheta;
+            if (theta == 0) {
+                for (const Cell& c : minusCells) {
+                    if (transport[c.i][c.j] == 0) {
+                        leavingDegenerate = c;
+                        break;
+                    }
+                }
+                if (leavingDegenerate.i < 0) {
+                    trace << "Candidate degeneree sans arete sortante nulle: (" << entering.i
+                          << "," << entering.j << "), candidate ignoree.\n";
+                    continue;
+                }
+                degeneratePivot = true;
+            }
+            appliedPivot = true;
+            break;
         }
 
+        if (!appliedPivot) {
+            result.hitMaxIterations = false;
+            trace << "Aucune arete ameliorante avec theta>0: optimum degenere atteint.\n";
+            return result;
+        }
+
+        trace << "Arete ameliorante choisie: (" << entering.i << "," << entering.j << ") delta=" << bestDelta << "\n";
         trace << "Cycle pour maximisation: ";
-        for (std::size_t k = 0; k < cycle.size(); ++k) {
-            trace << "(" << cycle[k].i << "," << cycle[k].j << ")";
-            if (k + 1 < cycle.size()) {
+        for (std::size_t k = 0; k < selectedCycle.size(); ++k) {
+            trace << "(" << selectedCycle[k].i << "," << selectedCycle[k].j << ")";
+            if (k + 1 < selectedCycle.size()) {
                 trace << " -> ";
             }
         }
         trace << "\n";
-
-        std::vector<Cell> minusCells;
-        for (std::size_t k = 1; k + 1 < cycle.size(); k += 2) {
-            minusCells.push_back(cycle[k]);
-        }
-
-        int theta = std::numeric_limits<int>::max();
-        for (const Cell& c : minusCells) {
-            theta = std::min(theta, transport[c.i][c.j]);
-        }
         trace << "Theta (maximisation sur cycle): " << theta << "\n";
 
         basis.insert(entering);
-
-        if (theta > 0 && theta < std::numeric_limits<int>::max()) {
-            for (std::size_t k = 0; k + 1 < cycle.size(); ++k) {
-                const Cell& c = cycle[k];
+        if (degeneratePivot) {
+            basis.erase(leavingDegenerate);
+            degenerateTabuEnterings.insert(entering);
+            trace << "Pivot degenere applique: entree=(" << entering.i << "," << entering.j
+                  << "), sortie=(" << leavingDegenerate.i << "," << leavingDegenerate.j << ")\n";
+        } else {
+            for (std::size_t k = 0; k + 1 < selectedCycle.size(); ++k) {
+                const Cell& c = selectedCycle[k];
                 if ((k % 2) == 0) {
                     transport[c.i][c.j] += theta;
                 } else {
@@ -906,21 +964,10 @@ SolveResult TransportProblem::steppingStoneWithTrace(
                 }
             }
 
-            excludedConnectivityEdges.clear();
-        } else {
-            // Cas delta=0: conserver l'arête améliorante et retirer les arêtes
-            // ajoutées lors du dernier test de connexité pour forcer un autre choix.
-            for (const Cell& e : lastConnectivityAdded) {
-                if (e == entering) {
-                    continue;
-                }
-                basis.erase(e);
-                excludedConnectivityEdges.insert(e);
-                trace << "Delta=0: retrait arete ajoutee lors de la derniere connexite: ("
-                      << e.i << "," << e.j << ")\n";
-            }
-            lastConnectivityAdded.clear();
+            degenerateTabuEnterings.clear();
         }
+
+        excludedConnectivityEdges.clear();
 
         enforceAcyclicThenConnected(entering, &lastConnectivityAdded, excludedConnectivityEdges);
         if (!lastConnectivityAdded.empty()) {

@@ -15,9 +15,6 @@ target_include_directories(transport_lib PUBLIC include)
 add_executable(transport_cli src/main.cpp)
 target_link_libraries(transport_cli PRIVATE transport_lib)
 
-add_executable(transport_benchmark src/benchmark_main.cpp)
-target_link_libraries(transport_benchmark PRIVATE transport_lib)
-
 add_executable(transport_etude10 src/etude10_main.cpp)
 target_link_libraries(transport_etude10 PRIVATE transport_lib)
 

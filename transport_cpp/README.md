@@ -1,14 +1,12 @@
 # Transport C++
 
-Réécriture C++ du projet de transport (algorithmes + benchmark + étude 3.3) dans un dossier séparé.
+Réécriture C++ du projet de transport (algorithmes + étude 3.3) dans un dossier séparé.
 
 ## Contenu
 
 - `transport_cli` : exécute les algorithmes sur un fichier ou un problème aléatoire.
-- `transport_benchmark` : campagne benchmark type projet Python.
-- `transport_etude10` : étude 3.3 (`n = 10, 40, 100, 400, 1000, 4000, 10000`).
+- `transport_etude10` : benchmark/étude 3.3 unifié (`n = 10, 40, 100, 400, 1000, 4000, 10000`).
 - `transport_traces` : génération automatique des traces demandées (12 problèmes, NO + BH).
-- `results/benchmark/` : sortie du benchmark C++.
 - `results/etude10/` : sortie de l'étude 10 C++.
 - `results/traces/` : traces générées par `transport_traces`.
 - `results/traces_test/` : traces de test et archives de validation.
@@ -28,7 +26,6 @@ Si `cmake` n'est pas installé, build direct avec `g++`:
 New-Item -ItemType Directory -Path .\bin -Force | Out-Null
 
 g++ -O3 -std=c++20 -I".\include" .\src\main.cpp .\src\transport_problem.cpp .\src\generator.cpp -o .\bin\transport_cli.exe
-g++ -O3 -std=c++20 -I".\include" .\src\benchmark_main.cpp .\src\transport_problem.cpp .\src\generator.cpp -o .\bin\transport_benchmark.exe
 g++ -O3 -std=c++20 -I".\include" .\src\etude10_main.cpp .\src\transport_problem.cpp .\src\generator.cpp -o .\bin\transport_etude10.exe
 g++ -O3 -std=c++20 -I".\include" .\src\traces_main.cpp .\src\transport_problem.cpp .\src\generator.cpp -o .\bin\transport_traces.exe
 ```
@@ -43,15 +40,7 @@ CLI solveur:
 .\build\Release\transport_cli.exe file ..\data\input\transport1.txt
 ```
 
-Benchmark:
-
-```powershell
-.\build\Release\transport_benchmark.exe 100
-```
-
-Sortie: `results\benchmark\resultats_benchmark_cpp.csv`
-
-Étude 3.3:
+Benchmark / Étude 3.3:
 
 ```powershell
 .\build\Release\transport_etude10.exe 100

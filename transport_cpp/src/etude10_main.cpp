@@ -5,8 +5,8 @@
 #include <iostream>
 #include <vector>
 
-#include "generator.hpp"
-#include "transport_problem.hpp"
+#include "../include/generator.hpp"
+#include "../include/transport_problem.hpp"
 
 using transport::TransportProblem;
 
@@ -15,6 +15,30 @@ static double cpuSeconds() {
 }
 
 int main(int argc, char** argv) {
+    // DEBUG MODE: test sur fichier
+    if (argc >= 2 && std::string(argv[1]) == "debug") {
+        try {
+            std::string filePath = argc >= 3 ? argv[2] : "../data/input/transport6.txt";
+            TransportProblem p = TransportProblem::loadFromFile(filePath);
+            std::cout << "DEBUG: Charging problem from " << filePath << " (" << p.n << "x" << p.m << ")\n";
+            
+            std::ofstream trace("results/etude10/debug_trace.txt");
+            p.balasHammer();
+            auto result = p.steppingStoneWithTrace(trace, "balas_hammer", 10000, true);
+            
+            trace << "\n====== FINAL RESULT ======\n";
+            trace << "Cost: " << p.totalCost() << "\n";
+            trace << "Iterations: " << result.iterations << "\n";
+            trace << "Hit max: " << (result.hitMaxIterations ? "yes" : "no") << "\n";
+            
+            std::cout << "DEBUG trace saved to results/etude10/debug_trace.txt\n";
+            return 0;
+        } catch (const std::exception& e) {
+            std::cerr << "DEBUG error: " << e.what() << "\n";
+            return 1;
+        }
+    }
+    
     int repetitions = 100;
     int nMax = 10000;
     if (argc >= 2) {
@@ -24,7 +48,8 @@ int main(int argc, char** argv) {
         nMax = std::stoi(argv[2]);
     }
 
-    const std::vector<int> nValues = {10, 40, 100, 400, 1000, 4000, 10000};
+    const std::vector<int> nValues = {10, 40, 100, 400};
+    //const std::vector<int> nValues = {10, 40, 100, 400, 1000, 4000, 10000};
 
     std::filesystem::create_directories("results/etude10");
     std::ofstream out("results/etude10/resultats_etude10_cpp.csv");
