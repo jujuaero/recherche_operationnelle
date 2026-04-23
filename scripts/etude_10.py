@@ -20,11 +20,19 @@ from structure import ProblemeTransport
 
 # Configuration progressive des tailles avec itérations adaptées
 CONFIG_SIZES = {
+    # Ancienne configuration conservée en référence :
+    # 10: 100,
+    # 40: 100,
+    # 100: 100,
+    # 400: 100,
+    # 1000: 100,
+    # 4000: 100,
+    # 10000: 100,
     10: 100,
-    40: 100,
-    100: 100,
-    400: 50,
-    
+    30: 80,
+    60: 60,
+    100: 50,
+    200: 30,
 }
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
