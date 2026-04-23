@@ -723,8 +723,136 @@ SolveResult TransportProblem::steppingStonePotentials(
     int maxIterations,
     bool initializationDone
 ) {
-    std::ostringstream sink;
-    return steppingStoneWithTrace(sink, initialMethod, maxIterations, initializationDone);
+    if (!initializationDone) {
+        if (initialMethod == "north_west") {
+            northWest();
+        } else if (initialMethod == "balas_hammer") {
+            balasHammer();
+        } else {
+            throw std::runtime_error("Initialisation inconnue: " + initialMethod);
+        }
+    } else if (basis.empty()) {
+        throw std::runtime_error("Initialisation deja faite, mais base vide.");
+    }
+
+    SolveResult result;
+    std::vector<Cell> lastConnectivityAdded;
+    std::unordered_set<Cell, CellHash> excludedConnectivityEdges;
+    std::unordered_set<Cell, CellHash> degenerateTabuEnterings;
+
+    for (int iter = 1; iter <= maxIterations; ++iter) {
+        auto [u, v] = computePotentials();
+        auto marginals = computeMarginals(u, v);
+
+        std::vector<std::pair<Cell, int>> negativeCandidates;
+        negativeCandidates.reserve(marginals.size());
+        for (const auto& kv : marginals) {
+            if (kv.second < 0) {
+                negativeCandidates.push_back(kv);
+            }
+        }
+
+        result.iterations = iter;
+        if (negativeCandidates.empty()) {
+            result.hitMaxIterations = false;
+            return result;
+        }
+
+        std::sort(
+            negativeCandidates.begin(),
+            negativeCandidates.end(),
+            [](const std::pair<Cell, int>& a, const std::pair<Cell, int>& b) {
+                return a.second < b.second;
+            }
+        );
+
+        bool appliedPivot = false;
+        bool degeneratePivot = false;
+        Cell entering{-1, -1};
+        std::vector<Cell> selectedCycle;
+        std::vector<Cell> minusCells;
+        int theta = 0;
+        Cell leavingDegenerate{-1, -1};
+
+        for (const auto& candidate : negativeCandidates) {
+            if (degenerateTabuEnterings.find(candidate.first) != degenerateTabuEnterings.end()) {
+                continue;
+            }
+
+            entering = candidate.first;
+            const auto cycle = findCycle(entering);
+            if (cycle.empty()) {
+                continue;
+            }
+
+            std::vector<Cell> candidateMinusCells;
+            for (std::size_t k = 1; k + 1 < cycle.size(); k += 2) {
+                candidateMinusCells.push_back(cycle[k]);
+            }
+
+            int candidateTheta = std::numeric_limits<int>::max();
+            for (const Cell& c : candidateMinusCells) {
+                candidateTheta = std::min(candidateTheta, transport[c.i][c.j]);
+            }
+
+            if (candidateTheta == std::numeric_limits<int>::max()) {
+                continue;
+            }
+
+            selectedCycle = cycle;
+            minusCells = std::move(candidateMinusCells);
+            theta = candidateTheta;
+            if (theta == 0) {
+                for (const Cell& c : minusCells) {
+                    if (transport[c.i][c.j] == 0) {
+                        leavingDegenerate = c;
+                        break;
+                    }
+                }
+                if (leavingDegenerate.i < 0) {
+                    continue;
+                }
+                degeneratePivot = true;
+            }
+            appliedPivot = true;
+            break;
+        }
+
+        if (!appliedPivot) {
+            result.hitMaxIterations = false;
+            return result;
+        }
+
+        basis.insert(entering);
+        if (degeneratePivot) {
+            basis.erase(leavingDegenerate);
+            degenerateTabuEnterings.insert(entering);
+        } else {
+            for (std::size_t k = 0; k + 1 < selectedCycle.size(); ++k) {
+                const Cell& c = selectedCycle[k];
+                if ((k % 2) == 0) {
+                    transport[c.i][c.j] += theta;
+                } else {
+                    transport[c.i][c.j] -= theta;
+                }
+            }
+
+            for (const Cell& c : minusCells) {
+                if (transport[c.i][c.j] == 0) {
+                    basis.erase(c);
+                    break;
+                }
+            }
+
+            degenerateTabuEnterings.clear();
+        }
+
+        excludedConnectivityEdges.clear();
+        enforceAcyclicThenConnected(entering, &lastConnectivityAdded, excludedConnectivityEdges);
+    }
+
+    result.hitMaxIterations = true;
+    return result;
 }
 
 SolveResult TransportProblem::steppingStoneWithTrace(
