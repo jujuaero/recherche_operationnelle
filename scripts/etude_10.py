@@ -14,26 +14,24 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import numpy as np
 
 from structure import ProblemeTransport
 
+CONFIG_SIZES = {}
+current = 1
+step = 1
+max_key = 51
+cpt = 0
 
-# Configuration progressive des tailles avec itérations adaptées
-CONFIG_SIZES = {
-    # Ancienne configuration conservée en référence :
-    # 10: 100,
-    # 40: 100,
-    # 100: 100,
-    # 400: 100,
-    # 1000: 100,
-    # 4000: 100,
-    # 10000: 100,
-    10: 100,
-    30: 40,
-    60: 10,
-    100: 1,
-    #200: 30,
-}
+while current <= max_key:
+    CONFIG_SIZES[current] = 25
+    current += step
+    cpt += 1
+    if cpt % 20 == 0:  #après 20 itérations avec le même pas, on l'augmente
+        step = min(step + 1, 50)
+
+print(CONFIG_SIZES)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = PROJECT_ROOT / "results" / "etude_10"
@@ -81,67 +79,44 @@ def _mesurer_cpu(fonction):
     return fin - debut
 
 
-def mesurer_une_realisation(probleme: ProblemeTransport) -> dict:
-    """Mesure thetaNO, thetaBH, tNO et tBH sur un même problème."""
-    resultat = {}
-
-    prob = _copier_probleme(probleme)
-    resultat["theta_NO_s"] = _mesurer_cpu(prob.methode_nord_ouest)
-
-    prob = _copier_probleme(probleme)
-    resultat["theta_BH_s"] = _mesurer_cpu(prob.methode_balas_hammer)
-
-    prob = _copier_probleme(probleme)
-    prob.methode_nord_ouest()
-    resultat["t_NO_s"] = _mesurer_cpu(
-        lambda: prob.methode_marche_pied_potentiels(
-            methode_initiale="nord_ouest",
-            max_iterations=MAX_ITERATIONS_MARCHE_PIED,
-            initialisation_deja_faite=True,
-        )
-    )
-
-    prob = _copier_probleme(probleme)
-    prob.methode_balas_hammer()
-    resultat["t_BH_s"] = _mesurer_cpu(
-        lambda: prob.methode_marche_pied_potentiels(
-            methode_initiale="balas_hammer",
-            max_iterations=MAX_ITERATIONS_MARCHE_PIED,
-            initialisation_deja_faite=True,
-        )
-    )
-
-    resultat["theta_plus_t_NO_s"] = resultat["theta_NO_s"] + resultat["t_NO_s"]
-    resultat["theta_plus_t_BH_s"] = resultat["theta_BH_s"] + resultat["t_BH_s"]
-    return resultat
-
-
-def executer_etude(config_sizes: dict = None) -> pd.DataFrame:
-    """Exécute l'étude complète avec tailles et répétitions adaptées.
-    
-    Args:
-        config_sizes: dict mapping {taille -> nb_repetitions}. 
-                     Par défaut utilise CONFIG_SIZES global.
+def executer_etude(config_sizes: dict = None, mode: str = "nouveau") -> pd.DataFrame:
+    """
+    Exécute l'étude.
+    Mode 'nouveau' : repart de zéro.
+    Mode 'continuer' : charge le CSV existant et ajoute les nouvelles mesures.
     """
     if config_sizes is None:
         config_sizes = CONFIG_SIZES
-    
+
     lignes = []
+
+    # gestion de la reprise
+    if mode == "continuer" and FICHIER_RESULTATS.exists():
+        print(f"[INFO] Chargement des données existantes depuis {FICHIER_RESULTATS.name}...")
+        df_existant = pd.read_csv(FICHIER_RESULTATS)
+        lignes = df_existant.to_dict('records')
+        # on identifie ce qui a déjà été fait (combinaison n et répétition)
+        deja_fait = set(zip(df_existant['n'], df_existant['repetition']))
+    else:
+        deja_fait = set()
+
     total_configs = len(config_sizes)
-    
-    print(f"\n{'='*80}")
-    print(f"ÉTUDE DE COMPLEXITÉ PROGRESSIVE")
-    print(f"{'='*80}")
-    print(f"Configurations à tester: {total_configs}")
-    print(f"Tailles: {sorted(config_sizes.keys())}\n")
+
+    print(f"\n{'=' * 80}")
+    print(f" ÉTUDE DE COMPLEXITÉ (Mode: {mode.upper()})")
+    print(f"{'=' * 80}")
 
     for idx, (n, nb_repetitions) in enumerate(sorted(config_sizes.items()), 1):
-        print(f"\n[{idx}/{total_configs}] Taille n = {n:5d} ({nb_repetitions} répétitions)")
-        
+        print(f"\n[{idx}/{total_configs}] Taille n = {n:5d}")
+
         for repetition in range(1, nb_repetitions + 1):
+            # si on est en mode continuer, on vérifie si la ligne existe déjà
+            if (n, repetition) in deja_fait:
+                continue
+
             try:
                 probleme = generer_probleme_carre(n)
-                mesures = mesurer_une_realisation(probleme)
+                mesures = mesurer_performance(probleme)
                 ligne = {
                     "n": n,
                     "repetition": repetition,
@@ -149,17 +124,16 @@ def executer_etude(config_sizes: dict = None) -> pd.DataFrame:
                 }
                 lignes.append(ligne)
             except Exception as e:
-                print(f"  [ERREUR] Répétition {repetition}/{nb_repetitions}: {str(e)[:40]}")
+                print(f"  [ERREUR] Répétition {repetition}: {str(e)[:40]}")
                 continue
 
             if repetition % max(1, nb_repetitions // 5) == 0:
-                progress_pct = (repetition / nb_repetitions) * 100
-                print(f"  Progression: {repetition}/{nb_repetitions} ({progress_pct:.0f}%)")
+                print(f"  Progression: {repetition}/{nb_repetitions} ({(repetition / nb_repetitions) * 100:.0f}%)")
 
     df = pd.DataFrame(lignes)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(FICHIER_RESULTATS, index=False)
-    print(f"\n[OK] {len(df)} résultats exportés vers {FICHIER_RESULTATS}")
+    print(f"\n[OK] {len(df)} lignes totales sauvegardées dans {FICHIER_RESULTATS}")
     return df
 
 
@@ -174,6 +148,41 @@ def _melt_resultats(df: pd.DataFrame) -> pd.DataFrame:
     ]
     df_melt = df.melt(id_vars=["n", "repetition"], value_vars=colonnes, var_name="mesure", value_name="temps_s")
     return df_melt
+
+
+def mesurer_performance(probleme: ProblemeTransport) -> dict:
+    """Mesure thetaNO, thetaBH, tNO et tBH avec perf_counter pour la précision."""
+    res = {}
+
+    # Nord-Ouest
+    p = _copier_probleme(probleme)
+    start = time.perf_counter()
+    p.methode_nord_ouest()
+    res["theta_NO_s"] = time.perf_counter() - start
+
+    # Balas-Hammer
+    p = _copier_probleme(probleme)
+    start = time.perf_counter()
+    p.methode_balas_hammer()
+    res["theta_BH_s"] = time.perf_counter() - start
+
+    # Marche-Pied (NO)
+    p = _copier_probleme(probleme)
+    p.methode_nord_ouest()
+    start = time.perf_counter()
+    p.methode_marche_pied_potentiels(initialisation_deja_faite=True)
+    res["t_NO_s"] = time.perf_counter() - start
+
+    # Marche-Pied (BH)
+    p = _copier_probleme(probleme)
+    p.methode_balas_hammer()
+    start = time.perf_counter()
+    p.methode_marche_pied_potentiels(initialisation_deja_faite=True)
+    res["t_BH_s"] = time.perf_counter() - start
+
+    res["theta_plus_t_NO_s"] = res["theta_NO_s"] + res["t_NO_s"]
+    res["theta_plus_t_BH_s"] = res["theta_BH_s"] + res["t_BH_s"]
+    return res
 
 
 def tracer_nuages(df: pd.DataFrame) -> None:
@@ -195,7 +204,46 @@ def tracer_nuages(df: pd.DataFrame) -> None:
     DOSSIER_SORTIE.mkdir(exist_ok=True)
     chemin = DOSSIER_SORTIE / "nuages_points.png"
     plt.savefig(chemin, dpi=160)
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
     print(f"[OK] Graphique sauvegardé: {chemin}")
+    plt.show()
+
+
+def tracer_moyennes(df: pd.DataFrame) -> None:
+    """Trace les courbes de moyennes pour chaque mesure."""
+    df_melt = _melt_resultats(df)
+    mesures = list(df_melt["mesure"].unique())
+
+    fig, axes = plt.subplots(2, 3, figsize=(18, 10), sharex=True)
+    axes = axes.flatten()
+
+    for axe, mesure in zip(axes, mesures):
+        subset = df_melt[df_melt["mesure"] == mesure]
+
+        sns.lineplot(
+            data=subset,
+            x="n",
+            y="temps_s",
+            ax=axe,
+            estimator="mean",
+            errorbar=None,
+            marker="o",
+            markersize=4
+        )
+
+        axe.set_title(f"Moyenne : {mesure}")
+        axe.set_xlabel("n")
+        axe.set_ylabel("Temps CPU Moyen (s)")
+        axe.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    DOSSIER_SORTIE.mkdir(exist_ok=True)
+    chemin = DOSSIER_SORTIE / "courbes_moyennes.png"
+    plt.savefig(chemin, dpi=160)
+    print(f"[OK] Graphique des moyennes sauvegardé: {chemin}")
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
     plt.show()
 
 
@@ -219,6 +267,8 @@ def tracer_maxima(df: pd.DataFrame) -> pd.DataFrame:
     chemin = DOSSIER_SORTIE / "maxima_temps.png"
     plt.savefig(chemin, dpi=160)
     print(f"[OK] Graphique sauvegardé: {chemin}")
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
     plt.show()
 
     maxima.to_csv(DOSSIER_SORTIE / "maxima_temps.csv", index=False)
@@ -229,7 +279,7 @@ def tracer_vues_benchmark(df: pd.DataFrame) -> None:
     """Ajoute des vues synthétiques inspirées du benchmark pour le rapport."""
     df_melt = _melt_resultats(df)
 
-    # 1) Courbes de tendance (moyenne et dispersion) par n et mesure.
+    # 1) Courbes de tendance (moyenne et dispersion) par n et mesure
     plt.figure(figsize=(12, 7))
     sns.lineplot(
         data=df_melt,
@@ -249,9 +299,11 @@ def tracer_vues_benchmark(df: pd.DataFrame) -> None:
     chemin = DOSSIER_SORTIE / "benchmark_style_tendance.png"
     plt.savefig(chemin, dpi=160)
     print(f"[OK] Graphique sauvegardé: {chemin}")
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
     plt.show()
 
-    # 2) Boîtes à moustaches pour visualiser la variabilité par taille.
+    # 2) Boîtes à moustaches pour visualiser la variabilité par taille
     focus = df_melt[df_melt["mesure"].isin(["theta_plus_t_NO_s", "theta_plus_t_BH_s"])]
     plt.figure(figsize=(12, 7))
     sns.boxplot(data=focus, x="n", y="temps_s", hue="mesure")
@@ -263,9 +315,11 @@ def tracer_vues_benchmark(df: pd.DataFrame) -> None:
     chemin = DOSSIER_SORTIE / "benchmark_style_boites.png"
     plt.savefig(chemin, dpi=160)
     print(f"[OK] Graphique sauvegardé: {chemin}")
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
     plt.show()
 
-    # 3) Trade-off NO vs BH sur les temps complets (points individuels).
+    # 3) Trade-off NO vs BH sur les temps complets
     plt.figure(figsize=(10, 7))
     sns.scatterplot(
         data=df,
@@ -286,6 +340,98 @@ def tracer_vues_benchmark(df: pd.DataFrame) -> None:
     chemin = DOSSIER_SORTIE / "benchmark_style_tradeoff_no_vs_bh.png"
     plt.savefig(chemin, dpi=160)
     print(f"[OK] Graphique sauvegardé: {chemin}")
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
+    plt.show()
+
+
+def tracer_analyse_complexite(df: pd.DataFrame) -> None:
+    """
+    Génère 4 graphiques comparant les moyennes réelles aux complexités théoriques
+    en utilisant les colonnes spécifiques : theta_NO_s, theta_BH_s, t_NO_s, t_BH_s.
+    """
+    df_melt = _melt_resultats(df)
+    config_theorique = {
+        "theta_NO_s": {"func": lambda x: x, "label": "O(n)", "titre": "Coin Nord-Ouest"},
+        "theta_BH_s": {"func": lambda x: x ** 3, "label": "O(n³)", "titre": "Balas-Hammer"},
+        "t_NO_s": {"func": lambda x: x ** 4, "label": "O(n³)", "titre": "Marche-Pied (depuis NO)"},
+        "t_BH_s": {"func": lambda x: x ** 4, "label": "O(n³)", "titre": "Marche-Pied (depuis BH)"}
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    axes = axes.flatten()
+
+    for i, (colonne, info) in enumerate(config_theorique.items()):
+        axe = axes[i]
+        data_mesure = df_melt[df_melt["mesure"] == colonne]
+
+        if data_mesure.empty:
+            axe.set_title(f"Données absentes : {colonne}")
+            print(f"[!] Colonne '{colonne}' non trouvée dans le DataFrame.")
+            continue
+
+        # calcul de la moyenne pour chaque n
+        subset = data_mesure.groupby("n")["temps_s"].mean().reset_index()
+        n_vals = subset["n"].values
+        temps_reel = subset["temps_s"].values
+
+        # --- TRACÉ RÉEL ---
+        sns.lineplot(x=n_vals, y=temps_reel, ax=axe, label="Réel (Moyenne)",
+                     marker="o", color="#1f77b4", linewidth=2.5, zorder=3)
+
+        # --- TRACÉ THÉORIQUE ---
+        y_theo_brut = np.array([info["func"](x) for x in n_vals])
+
+        if len(y_theo_brut) > 0 and y_theo_brut[-1] > 0:
+            # aligne dernier point théorique sur le dernier point réel pour comparer la forme
+            echelle = temps_reel[-1] / y_theo_brut[-1]
+            y_theo_scaled = y_theo_brut * echelle
+
+            axe.plot(n_vals, y_theo_scaled, linestyle="--", color="#d62728",
+                     linewidth=2, alpha=0.8, label=f"Tendance {info['label']}")
+
+        axe.set_title(info["titre"], fontsize=14, fontweight='bold')
+        axe.set_xlabel("Taille du problème (n)")
+        axe.set_ylabel("Temps CPU Moyen (s)")
+        axe.legend(frameon=True)
+        axe.grid(True, which="both", alpha=0.3)
+
+    plt.tight_layout()
+
+    DOSSIER_SORTIE.mkdir(exist_ok=True, parents=True)
+    chemin = DOSSIER_SORTIE / f"analyse_O_complexite_.png"
+
+    plt.savefig(chemin, dpi=160)
+    print(f"\n[OK] Graphique généré avec succès : {chemin}")
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
+    plt.show()
+
+
+def tracer_comparaison_efficacite(df: pd.DataFrame) -> None:
+    """
+    Compare directement le temps total (Initialisation + Marche-pied)
+    entre Nord-Ouest et Balas-Hammer.
+    """
+    plt.figure(figsize=(10, 6))
+
+    # Calcul des moyennes par n pour la clarté
+    df_avg = df.groupby("n")[["theta_plus_t_NO_s", "theta_plus_t_BH_s"]].mean().reset_index()
+
+    plt.plot(df_avg["n"], df_avg["theta_plus_t_NO_s"], label="Total via Nord-Ouest", marker='o')
+    plt.plot(df_avg["n"], df_avg["theta_plus_t_BH_s"], label="Total via Balas-Hammer", marker='s')
+
+    plt.title("Comparaison de l'efficacité totale : NO vs BH")
+    plt.xlabel("Taille du problème (n)")
+    plt.ylabel("Temps total moyen (s)")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    chemin = DOSSIER_SORTIE / "comparaison_efficacite_totale.png"
+    plt.savefig(chemin, dpi=160)
+    print(f"[OK] Graphique de comparaison sauvegardé: {chemin}")
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
     plt.show()
 
 
@@ -302,29 +448,46 @@ def imprimer_resume(maxima: pd.DataFrame) -> None:
 
 
 def main():
-    """Exécute l'étude complète avec configuration progressive."""
+    """Exécute l'étude avec choix du mode (Nouveau vs Continuer)."""
     import sys
-    
+
+    # 1. Choix du mode
+    mode = "nouveau"
+    if FICHIER_RESULTATS.exists():
+        print(f"\nFichier de résultats détecté : {FICHIER_RESULTATS}")
+        choix = input("Voulez-vous (c)ontinuer l'étude existante ou repartir de (z)éro ? [c/z] : ").lower().strip()
+        if choix == 'c':
+            mode = "continuer"
+        else:
+            print("[!] Attention: Le fichier existant sera écrasé à la fin du processus.")
+
     config = CONFIG_SIZES.copy()
-    
-    # Optionnel: permettre de surcharger certaines tailles via CLI
+
+    # Optionnel : mode rapide
     if len(sys.argv) > 1 and sys.argv[1] == "--quick":
-        # Mode rapide pour tester: seulement petites et moyennes
-        config = {k: v for k, v in config.items() if k <= 500}
-        print("[INFO] Mode RAPIDE: seulement tailles <= 500")
-    
-    df = executer_etude(config_sizes=config)
-    
-    print(f"\n{'='*80}")
-    print("GÉNÉRATION DES GRAPHIQUES")
-    print(f"{'='*80}")
-    
+        config = {k: v for k, v in config.items() if k <= 50}
+        print("[INFO] Mode RAPIDE activé.")
+
+    # 2. Lancement de l'étude
+    df = executer_etude(config_sizes=config, mode=mode)
+
+    if df.empty:
+        print("[!] Aucune donnée à traiter.")
+        return
+
+    print(f"\n{'=' * 80}")
+    print(" GÉNÉRATION DES GRAPHIQUES")
+    print(f"{'=' * 80}")
+
     tracer_nuages(df)
+    tracer_moyennes(df)
     maxima = tracer_maxima(df)
     tracer_vues_benchmark(df)
     imprimer_resume(maxima)
-    
-    print(f"\n[OK] Étude complète terminée !")
+    tracer_analyse_complexite(df)
+    tracer_comparaison_efficacite(df)
+
+    print(f"\n[OK] Étude terminée avec succès !")
 
 
 if __name__ == "__main__":
