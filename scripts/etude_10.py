@@ -21,14 +21,14 @@ from structure import ProblemeTransport
 CONFIG_SIZES = {}
 current = 1
 step = 1
-max_key = 51
+max_key = 60
 cpt = 0
 
 while current <= max_key:
     CONFIG_SIZES[current] = 25
     current += step
     cpt += 1
-    if cpt % 20 == 0:  #après 20 itérations avec le même pas, on l'augmente
+    if cpt % 20 == 0:  # après 20 itérations avec le même pas, on l'augmente
         step = min(step + 1, 50)
 
 print(CONFIG_SIZES)
@@ -145,6 +145,8 @@ def _melt_resultats(df: pd.DataFrame) -> pd.DataFrame:
         "t_BH_s",
         "theta_plus_t_NO_s",
         "theta_plus_t_BH_s",
+        "theta_NO_numba_s",  # Ajout
+        "theta_BH_numba_s"  # Ajout
     ]
     df_melt = df.melt(id_vars=["n", "repetition"], value_vars=colonnes, var_name="mesure", value_name="temps_s")
     return df_melt
@@ -182,6 +184,20 @@ def mesurer_performance(probleme: ProblemeTransport) -> dict:
 
     res["theta_plus_t_NO_s"] = res["theta_NO_s"] + res["t_NO_s"]
     res["theta_plus_t_BH_s"] = res["theta_BH_s"] + res["t_BH_s"]
+
+    """
+    Code pour comparaison complexité pyton numba
+    """
+    p1 = _copier_probleme(probleme)
+    start = time.perf_counter()
+    p1.executer_nord_ouest_fast()
+    res["theta_NO_numba_s"] = time.perf_counter() - start
+
+    # Version Numba Balas-Hammer
+    p2 = _copier_probleme(probleme)
+    start = time.perf_counter()
+    p2.executer_balas_hammer_fast()
+    res["theta_BH_numba_s"] = time.perf_counter() - start
     return res
 
 
@@ -415,7 +431,7 @@ def tracer_comparaison_efficacite(df: pd.DataFrame) -> None:
     """
     plt.figure(figsize=(10, 6))
 
-    # Calcul des moyennes par n pour la clarté
+    # Calcul des moyennes par n
     df_avg = df.groupby("n")[["theta_plus_t_NO_s", "theta_plus_t_BH_s"]].mean().reset_index()
 
     plt.plot(df_avg["n"], df_avg["theta_plus_t_NO_s"], label="Total via Nord-Ouest", marker='o')
@@ -447,28 +463,87 @@ def imprimer_resume(maxima: pd.DataFrame) -> None:
         )
 
 
+def tracer_comparaison_numba(df: pd.DataFrame) -> None:
+    """
+    Génère des graphiques comparant spécifiquement les versions Python pur et Numba.
+    Utilise une échelle logarithmique pour que les deux courbes soient visibles.
+    """
+    df_avg = df.groupby("n")[["theta_NO_s", "theta_NO_numba_s",
+                              "theta_BH_s", "theta_BH_numba_s"]].mean().reset_index()
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
+
+    # --- GRAPHIQUE 1 : COMPARAISON DES TEMPS (Échelle Log) ---
+    ax1.plot(df_avg["n"], df_avg["theta_NO_s"], 'b-', label="Nord-Ouest (Python)")
+    ax1.plot(df_avg["n"], df_avg["theta_NO_numba_s"], 'b--', label="Nord-Ouest (Numba/C)")
+    ax1.plot(df_avg["n"], df_avg["theta_BH_s"], 'r-', label="Balas-Hammer (Python)")
+    ax1.plot(df_avg["n"], df_avg["theta_BH_numba_s"], 'r--', label="Balas-Hammer (Numba/C)")
+
+    ax1.set_yscale('log')
+    ax1.set_title("Comparaison des temps (Échelle Logarithmique)", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("Taille n")
+    ax1.set_ylabel("Temps (secondes)")
+    ax1.legend()
+    ax1.grid(True, which="both", alpha=0.3)
+
+    # --- GRAPHIQUE 2 : FACTEUR D'ACCÉLÉRATION  ---
+    speedup_no = df_avg["theta_NO_s"] / df_avg["theta_NO_numba_s"]
+    speedup_bh = df_avg["theta_BH_s"] / df_avg["theta_BH_numba_s"]
+
+    ax2.plot(df_avg["n"], speedup_no, 'b-o', label="Speedup Nord-Ouest")
+    ax2.plot(df_avg["n"], speedup_bh, 'r-s', label="Speedup Balas-Hammer")
+    ax2.axhline(y=1, color='black', linestyle='--', alpha=0.5)
+    ax2.set_title("Facteur d'accélération (Combien de fois Numba est plus rapide)", fontsize=12, fontweight='bold')
+    ax2.set_xlabel("Taille n")
+    ax2.set_ylabel("Ratio (Temps Py / Temps Numba)")
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    plt.tight_layout()
+    chemin = DOSSIER_SORTIE / "comparaison_python_vs_numba.png"
+    plt.savefig(chemin, dpi=160)
+    print(f"[OK] Nouveau graphique comparatif sauvegardé : {chemin}")
+    mng = plt.get_current_fig_manager()
+    if hasattr(mng.window, 'state'): mng.window.state('zoomed')
+    plt.show()
+
+
 def main():
-    """Exécute l'étude avec choix du mode (Nouveau vs Continuer)."""
+    """Exécute l'étude avec choix du mode et comparaison Python vs Numba."""
     import sys
 
-    # 1. Choix du mode
+    # --- ÉTAPE 0 : WARMUP NUMBA ---
+    print(f"\n{'=' * 80}")
+    print("[INFO] Initialisation du compilateur JIT (Numba)...")
+    try:
+        from structure import ProblemeTransport
+        p_warmup = ProblemeTransport(2, 2)
+        p_warmup.couts = [[1, 2], [3, 4]]
+        p_warmup.provisions = [10, 10]
+        p_warmup.commandes = [10, 10]
+        p_warmup.executer_nord_ouest_fast()
+        p_warmup.executer_balas_hammer_fast()
+        print("[OK] Compilateur prêt. Les mesures seront précises.")
+    except Exception as e:
+        print(f"[!] Erreur lors du warmup Numba : {e}")
+        print("[!] L'étude continuera peut-être sans les optimisations.")
+    print(f"{'=' * 80}\n")
+
+    # Choix du mode
     mode = "nouveau"
     if FICHIER_RESULTATS.exists():
-        print(f"\nFichier de résultats détecté : {FICHIER_RESULTATS}")
+        print(f"Fichier de résultats détecté : {FICHIER_RESULTATS}")
         choix = input("Voulez-vous (c)ontinuer l'étude existante ou repartir de (z)éro ? [c/z] : ").lower().strip()
         if choix == 'c':
             mode = "continuer"
         else:
-            print("[!] Attention: Le fichier existant sera écrasé à la fin du processus.")
+            print("[!] Attention : Le fichier existant sera écrasé à la fin du processus.")
 
     config = CONFIG_SIZES.copy()
 
-    # Optionnel : mode rapide
     if len(sys.argv) > 1 and sys.argv[1] == "--quick":
-        config = {k: v for k, v in config.items() if k <= 50}
-        print("[INFO] Mode RAPIDE activé.")
+        config = {k: v for k, v in config.items() if k <= 20}
+        print("[INFO] Mode RAPIDE activé (tailles réduites).")
 
-    # 2. Lancement de l'étude
     df = executer_etude(config_sizes=config, mode=mode)
 
     if df.empty:
@@ -476,7 +551,7 @@ def main():
         return
 
     print(f"\n{'=' * 80}")
-    print(" GÉNÉRATION DES GRAPHIQUES")
+    print(" GÉNÉRATION DES GRAPHIQUES (COMPARAISON PYTHON vs NUMBA)")
     print(f"{'=' * 80}")
 
     tracer_nuages(df)
@@ -484,10 +559,19 @@ def main():
     maxima = tracer_maxima(df)
     tracer_vues_benchmark(df)
     imprimer_resume(maxima)
+
+    # Graphiques complexité
     tracer_analyse_complexite(df)
     tracer_comparaison_efficacite(df)
 
-    print(f"\n[OK] Étude terminée avec succès !")
+    print("\n[INFO] Génération du comparatif Python vs Numba...")
+    """
+    Code pour comparaison complexité pyton numba
+    """
+    tracer_comparaison_numba(df)
+
+    print(f"\n[OK] Étude comparative terminée avec succès !")
+    print(f"Les résultats sont disponibles dans : {DOSSIER_SORTIE}")
 
 
 if __name__ == "__main__":

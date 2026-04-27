@@ -5,10 +5,93 @@ Gère la matrice des coûts, les provisions, les commandes et la matrice de tran
 
 from pathlib import Path
 
+"""
+Code pour comparaison complexité pyton numba
+"""
+import numpy as np
+from numba import njit
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_INPUT_DIR = PROJECT_ROOT / "data" / "input"
 DATA_GENERATED_DIR = PROJECT_ROOT / "data" / "generated"
+
+"""
+Code pour comparaison complexité pyton numba
+"""
+@njit
+def _nord_ouest_numba(n, m, provisions, commandes):
+    transport = np.zeros((n, m))
+    prov = provisions.copy()
+    comm = commandes.copy()
+    i, j = 0, 0
+    while i < n and j < m:
+        quantite = min(prov[i], comm[j])
+        transport[i, j] = quantite
+        prov[i] -= quantite
+        comm[j] -= quantite
+        if prov[i] == 0 and i < n - 1:
+            i += 1
+        elif comm[j] == 0 and j < m - 1:
+            j += 1
+        else:
+            i += 1
+            j += 1
+    return transport
+
+
+@njit
+def _balas_hammer_numba(n, m, couts, provisions, commandes):
+    transport = np.zeros((n, m))
+    prov = provisions.copy()
+    comm = commandes.copy()
+    lignes_actives = np.ones(n, dtype=np.bool_)
+    colonnes_actives = np.ones(m, dtype=np.bool_)
+
+    while np.any(lignes_actives) and np.any(colonnes_actives):
+        max_penalite = -1.0
+        cible_i, cible_j = -1, -1
+
+        # pénalités lignes
+        for i in range(n):
+            if lignes_actives[i]:
+                c1, c2 = 1e9, 1e9
+                idx_min = -1
+                for j in range(m):
+                    if colonnes_actives[j]:
+                        if couts[i, j] < c1:
+                            c2, c1 = c1, couts[i, j]
+                            idx_min = j
+                        elif couts[i, j] < c2:
+                            c2 = couts[i, j]
+                p = c2 - c1 if c2 != 1e9 else c1
+                if p > max_penalite:
+                    max_penalite, cible_i, cible_j = p, i, idx_min
+
+        # pénalités colonnes
+        for j in range(m):
+            if colonnes_actives[j]:
+                c1, c2 = 1e9, 1e9
+                idx_min = -1
+                for i in range(n):
+                    if lignes_actives[i]:
+                        if couts[i, j] < c1:
+                            c2, c1 = c1, couts[i, j]
+                            idx_min = i
+                        elif couts[i, j] < c2:
+                            c2 = couts[i, j]
+                p = c2 - c1 if c2 != 1e9 else c1
+                if p > max_penalite:
+                    max_penalite, cible_i, cible_j = p, idx_min, j
+
+        q = min(prov[cible_i], comm[cible_j])
+        transport[cible_i, cible_j] = q
+        prov[cible_i] -= q
+        comm[cible_j] -= q
+        if prov[cible_i] <= 0:
+            lignes_actives[cible_i] = False
+        else:
+            colonnes_actives[cible_j] = False
+    return transport
 
 
 class ProblemeTransport:
@@ -24,7 +107,7 @@ class ProblemeTransport:
         transport: matrice n x m de la solution (quantités transportées)
         base: ensemble des indices (i,j) formant la base pour la méthode des potentiels
     """
-    
+
     def __init__(self, n=0, m=0):
         self.n = n  # nombre de fournisseurs
         self.m = m  # nombre de clients
@@ -33,7 +116,7 @@ class ProblemeTransport:
         self.commandes = []  # vecteur m
         self.transport = []  # matrice n x m (solution)
         self.base = set()  # cellules de la base
-    
+
     @staticmethod
     def charger_depuis_fichier(nom_fichier):
         """
@@ -49,7 +132,7 @@ class ProblemeTransport:
         Les prix unitaires sont en bleu, provisions en dernière colonne.
         """
         probleme = ProblemeTransport()
-        
+
         # Déterminer le chemin du fichier
         chemin_fichier = Path(nom_fichier)
         if not chemin_fichier.exists():
@@ -58,43 +141,43 @@ class ProblemeTransport:
                 chemin_fichier = candidat_input
             else:
                 chemin_fichier = DATA_GENERATED_DIR / nom_fichier
-        
+
         with open(chemin_fichier, 'r', encoding='utf-8') as f:
             lignes = [ligne.strip() for ligne in f.readlines() if ligne.strip()]
-        
+
         # Lecture n et m
         n, m = map(int, lignes[0].split())
         probleme.n = n
         probleme.m = m
-        
+
         # Lecture coûts et provisions
         probleme.couts = []
         probleme.provisions = []
-        
+
         for i in range(1, n + 1):
             elements = list(map(int, lignes[i].split()))
             ligne_couts = elements[:m]
             provision = elements[m]
-            
+
             probleme.couts.append(ligne_couts)
             probleme.provisions.append(provision)
-        
+
         # Lecture commandes
         commandes = list(map(int, lignes[n + 1].split()))
         probleme.commandes = commandes
-        
+
         # Vérifier l'équilibrage
         if sum(probleme.provisions) != sum(probleme.commandes):
             raise ValueError(
                 f"Probleme non equilibre: sum(provisions)={sum(probleme.provisions)}, "
                 f"sum(commandes)={sum(probleme.commandes)}"
             )
-        
+
         # Initialiser matrice de transport vide
         probleme.transport = [[0] * m for _ in range(n)]
-        
+
         return probleme
-    
+
     def afficher_matrice_couts(self):
         """Affiche la matrice des coûts avec provisions"""
         return self._afficher_matrice(
@@ -103,7 +186,7 @@ class ProblemeTransport:
             extras_colonne=self.provisions,
             label_extra="Provisions"
         )
-    
+
     def afficher_matrice_transport(self):
         """Affiche la matrice de transport avec provisions"""
         return self._afficher_matrice(
@@ -112,47 +195,47 @@ class ProblemeTransport:
             extras_colonne=self.provisions,
             label_extra="Provisions"
         )
-    
+
     def afficher_table_potentiels(self, potentiels_u, potentiels_v):
         """Affiche les potentiels u(i) et v(j)"""
         resultat = f"\nTABLE DES POTENTIELS\n"
         resultat += "=" * 80 + "\n"
         resultat += f"u(i) = potentiels des fournisseurs\n"
         resultat += f"v(j) = potentiels des clients\n\n"
-        
+
         # Afficher u(i)
         resultat += f"{'Fournisseur':<20} | {'u(i)':<10}\n"
         resultat += "-" * 35 + "\n"
         for i in range(self.n):
             val = potentiels_u[i] if potentiels_u[i] is not None else "?"
             resultat += f"{'Fournisseur ' + str(i):<20} | {str(val):<10}\n"
-        
+
         resultat += "\n"
-        
+
         # Afficher v(j)
         resultat += f"{'Client':<20} | {'v(j)':<10}\n"
         resultat += "-" * 35 + "\n"
         for j in range(self.m):
             val = potentiels_v[j] if potentiels_v[j] is not None else "?"
             resultat += f"{'Client ' + str(j):<20} | {str(val):<10}\n"
-        
+
         resultat += "=" * 80
         return resultat
-    
+
     def afficher_table_marginaux(self, marginaux):
         """Affiche la table des coûts marginaux"""
         resultat = f"\nTABLE DES COÛTS MARGINAUX (pour cellules hors base)\n"
         resultat += "=" * 80 + "\n"
-        
+
         largeur = 8
-        
+
         # En-tête
         entete = f"{'F/C':<5} |"
         for j in range(self.m):
             entete += f"{f'C{j}':<{largeur}}"
         resultat += entete + "\n"
         resultat += "-" * len(entete) + "\n"
-        
+
         # Lignes
         for i in range(self.n):
             ligne = f"{'F' + str(i):<5} |"
@@ -165,10 +248,10 @@ class ProblemeTransport:
                     val = "-"
                 ligne += f"{val:<{largeur}}"
             resultat += ligne + "\n"
-        
+
         resultat += "=" * 80
         return resultat
-    
+
     def cout_total(self):
         """Calcule le coût total actuel du transport"""
         cout = 0
@@ -451,10 +534,10 @@ class ProblemeTransport:
         return None
 
     def methode_marche_pied_potentiels(
-        self,
-        methode_initiale="nord_ouest",
-        max_iterations=1000,
-        initialisation_deja_faite=False,
+            self,
+            methode_initiale="nord_ouest",
+            max_iterations=1000,
+            initialisation_deja_faite=False,
     ):
         """
         Optimise une solution de transport via marche-pied avec potentiels.
@@ -546,7 +629,7 @@ class ProblemeTransport:
         resultat += f"Coût final optimisé: {self.cout_total()}\n"
         resultat += self.afficher_matrice_transport()
         return resultat
-    
+
     def _afficher_matrice(self, matrice, titre="", extras_colonne=None, label_extra=""):
         """
         Affiche une matrice de manière formatée et lisible.
@@ -559,7 +642,7 @@ class ProblemeTransport:
         """
         resultat = f"\n{titre}\n"
         resultat += "=" * 100 + "\n"
-        
+
         # Calculer largeur
         largeur_max = 4
         if extras_colonne:
@@ -568,19 +651,19 @@ class ProblemeTransport:
         for i in range(len(matrice)):
             for j in range(len(matrice[0])):
                 largeur_max = max(largeur_max, len(str(matrice[i][j])))
-        
+
         largeur = largeur_max + 2
-        
+
         # En-tête colonnes
         entete = f"{'F/C':<10} |"
         for j in range(self.m):
             entete += f"{f'C{j}':<{largeur}}"
         if extras_colonne:
             entete += f"{label_extra:<{largeur}}"
-        
+
         resultat += entete + "\n"
         resultat += "-" * len(entete) + "\n"
-        
+
         # Lignes matrice
         for i in range(len(matrice)):
             ligne = f"{'F' + str(i):<10} |"
@@ -589,13 +672,27 @@ class ProblemeTransport:
             if extras_colonne:
                 ligne += f"{str(extras_colonne[i]):<{largeur}}"
             resultat += ligne + "\n"
-        
+
         # Ligne commandes si applicable
         if self.commandes:
             ligne = f"{'Commandes':<10} |"
             for j in range(self.m):
                 ligne += f"{str(self.commandes[j]):<{largeur}}"
             resultat += ligne + "\n"
-        
+
         resultat += "=" * 100
         return resultat
+
+    """
+    Code pour comparaison complexité pyton numba
+    """
+    def executer_nord_ouest_fast(self):
+        p = np.array(self.provisions, dtype=np.float64)
+        c = np.array(self.commandes, dtype=np.float64)
+        self.transport = _nord_ouest_numba(self.n, self.m, p, c)
+
+    def executer_balas_hammer_fast(self):
+        co = np.array(self.couts, dtype=np.float64)
+        p = np.array(self.provisions, dtype=np.float64)
+        c = np.array(self.commandes, dtype=np.float64)
+        self.transport = _balas_hammer_numba(self.n, self.m, co, p, c)
