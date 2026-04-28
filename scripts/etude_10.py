@@ -21,15 +21,25 @@ from structure import ProblemeTransport
 CONFIG_SIZES = {}
 current = 1
 step = 1
-max_key = 60
+max_key = 400
 cpt = 0
 
 while current <= max_key:
-    CONFIG_SIZES[current] = 25
+    if current < 100:
+        repetitions = 100
+    elif current < 150:
+        repetitions = 75
+    elif current < 175:
+        repetitions = 50
+    elif current < 200:
+        repetitions = 25
+    else:
+        repetitions = 5
+    CONFIG_SIZES[current] = repetitions
     current += step
     cpt += 1
-    if cpt % 20 == 0:  # après 20 itérations avec le même pas, on l'augmente
-        step = min(step + 1, 50)
+    if cpt % 15 == 0:
+        step = min(step + 5, 50)
 
 print(CONFIG_SIZES)
 
@@ -368,10 +378,10 @@ def tracer_analyse_complexite(df: pd.DataFrame) -> None:
     """
     df_melt = _melt_resultats(df)
     config_theorique = {
-        "theta_NO_s": {"func": lambda x: x, "label": "O(n)", "titre": "Coin Nord-Ouest"},
+        "theta_NO_s": {"func": lambda x: x ** 2, "label": "O(n²)", "titre": "Coin Nord-Ouest"},
         "theta_BH_s": {"func": lambda x: x ** 3, "label": "O(n³)", "titre": "Balas-Hammer"},
-        "t_NO_s": {"func": lambda x: x ** 4, "label": "O(n³)", "titre": "Marche-Pied (depuis NO)"},
-        "t_BH_s": {"func": lambda x: x ** 4, "label": "O(n³)", "titre": "Marche-Pied (depuis BH)"}
+        "t_NO_s": {"func": lambda x: x ** 3, "label": "O(n³)", "titre": "Marche-Pied (depuis NO)"},
+        "t_BH_s": {"func": lambda x: x ** 4, "label": "O(n⁴)", "titre": "Marche-Pied (depuis BH)"}
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
