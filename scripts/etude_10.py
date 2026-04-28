@@ -517,6 +517,28 @@ def tracer_comparaison_numba(df: pd.DataFrame) -> None:
     plt.show()
 
 
+def tracer_ratio_performance(df: pd.DataFrame) -> None:
+    """
+    Trace le ratio (tNO + thetaNO) / (tBH + thetaBH) et son maximum.
+    """
+    df['ratio_no_bh'] = df['theta_plus_t_NO_s'] / df['theta_plus_t_BH_s']
+    df_stats = df.groupby("n")['ratio_no_bh'].agg(['mean', 'max']).reset_index()
+    plt.figure(figsize=(10, 6))
+    plt.plot(df_stats["n"], df_stats["mean"], 'g-o', label="Ratio Moyen (NO/BH)")
+    plt.plot(df_stats["n"], df_stats["max"], 'r--x', label="Ratio Maximum (Pire cas NO relative à BH)")
+    plt.axhline(y=1, color='black', linestyle=':', label="Seuil d'équilibre (Ratio=1)")
+    plt.title(r"Analyse comparative : $\frac{t_{NO} + \theta_{NO}}{t_{BH} + \theta_{BH}}$ en fonction de $n$")
+    plt.xlabel("Taille du problème (n)")
+    plt.ylabel("Ratio de performance")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    chemin = DOSSIER_SORTIE / "ratio_performance_no_bh.png"
+    plt.savefig(chemin, dpi=160)
+    print(f"[OK] Graphique du ratio sauvegardé : {chemin}")
+    plt.show()
+    plt.show()
+
+
 def main():
     """Exécute l'étude avec choix du mode et comparaison Python vs Numba."""
     import sys
@@ -573,6 +595,8 @@ def main():
     # Graphiques complexité
     tracer_analyse_complexite(df)
     tracer_comparaison_efficacite(df)
+
+    tracer_ratio_performance(df)
 
     print("\n[INFO] Génération du comparatif Python vs Numba...")
     """
