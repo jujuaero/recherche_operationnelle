@@ -16,6 +16,9 @@ import pandas as pd
 import seaborn as sns
 import numpy as np
 
+import matplotlib
+matplotlib.use('TkAgg') # Ou 'Qt5Agg' si vous avez PyQt installé
+
 from structure import ProblemeTransport
 
 CONFIG_SIZES = {}
@@ -230,9 +233,9 @@ def tracer_nuages(df: pd.DataFrame) -> None:
     DOSSIER_SORTIE.mkdir(exist_ok=True)
     chemin = DOSSIER_SORTIE / "nuages_points.png"
     plt.savefig(chemin, dpi=160)
+    print(f"[OK] Graphique sauvegardé: {chemin}")
     mng = plt.get_current_fig_manager()
     mng.window.state('zoomed')
-    print(f"[OK] Graphique sauvegardé: {chemin}")
     plt.show()
 
 
@@ -293,10 +296,9 @@ def tracer_maxima(df: pd.DataFrame) -> pd.DataFrame:
     chemin = DOSSIER_SORTIE / "maxima_temps.png"
     plt.savefig(chemin, dpi=160)
     print(f"[OK] Graphique sauvegardé: {chemin}")
+    plt.show()
     mng = plt.get_current_fig_manager()
     mng.window.state('zoomed')
-    plt.show()
-
     maxima.to_csv(DOSSIER_SORTIE / "maxima_temps.csv", index=False)
     return maxima
 
@@ -513,13 +515,13 @@ def tracer_comparaison_numba(df: pd.DataFrame) -> None:
     plt.savefig(chemin, dpi=160)
     print(f"[OK] Nouveau graphique comparatif sauvegardé : {chemin}")
     mng = plt.get_current_fig_manager()
-    if hasattr(mng.window, 'state'): mng.window.state('zoomed')
+    mng.window.state('zoomed')
     plt.show()
 
 
 def tracer_ratio_performance(df: pd.DataFrame) -> None:
     """
-    Trace le ratio (tNO + thetaNO) / (tBH + thetaBH) et son maximum.
+    Trace le ratio (tNO + thetaNO) / (tBH + thetaBH) et son maximum.f
     """
     df['ratio_no_bh'] = df['theta_plus_t_NO_s'] / df['theta_plus_t_BH_s']
     df_stats = df.groupby("n")['ratio_no_bh'].agg(['mean', 'max']).reset_index()
@@ -535,6 +537,8 @@ def tracer_ratio_performance(df: pd.DataFrame) -> None:
     chemin = DOSSIER_SORTIE / "ratio_performance_no_bh.png"
     plt.savefig(chemin, dpi=160)
     print(f"[OK] Graphique du ratio sauvegardé : {chemin}")
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
     plt.show()
     plt.show()
 
