@@ -3,6 +3,7 @@ A installer (analyse et visualisation):
 - numpy
 - matplotlib
 - seaborn
+- numba
 
 Commande:
 pip install pandas numpy matplotlib seaborn

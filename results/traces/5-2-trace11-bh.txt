@@ -1,0 +1,204 @@
+
+################################################################################
+# GROUPE 5 - ÉQUIPE 2 - PROBLÈME 11
+# MÉTHODE: BALAS-HAMMER (BH)
+################################################################################
+
+
+MATRICE DES COÛTS
+====================================================================================================
+F/C        |C0    C1    C2    C3    C4    C5    C6    C7    C8    C9    Provisions
+----------------------------------------------------------------------------------
+F0         |1     2     3     4     5     6     7     8     9     10    10    
+F1         |11    12    13    14    15    16    17    18    19    20    20    
+F2         |21    22    23    24    25    26    27    28    29    30    30    
+F3         |31    32    33    34    35    36    37    38    39    40    40    
+F4         |41    41    43    44    45    46    47    48    49    50    50    
+F5         |51    32    53    54    55    56    57    58    59    60    60    
+F6         |61    62    63    64    65    66    67    68    69    70    70    
+F7         |71    72    73    74    75    76    77    78    79    80    80    
+F8         |81    82    83    84    85    86    87    88    89    90    90    
+F9         |91    92    93    94    95    96    97    98    99    100   100   
+F10        |101   102   103   104   105   106   107   108   109   110   110   
+F11        |111   112   113   114   115   116   117   118   119   120   120   
+F12        |121   122   123   124   125   126   127   128   129   130   130   
+F13        |131   132   133   134   135   136   137   138   139   140   140   
+F14        |141   142   143   144   145   146   147   148   149   150   150   
+F15        |151   152   153   154   155   156   157   158   159   160   160   
+F16        |161   162   163   164   165   166   167   168   169   170   170   
+F17        |171   172   173   174   175   176   177   178   179   180   180   
+F18        |181   182   183   184   185   186   187   188   189   190   190   
+F19        |191   192   193   194   195   196   197   198   199   200   200   
+Commandes  |120   140   160   180   200   220   240   260   280   300   
+====================================================================================================
+
+MARCHE-PIED + POTENTIELS
+================================================================================
+Solution initiale choisie: Balas-Hammer
+Coût initial: 277950
+--------------------------------------------------------------------------------
+
+MÉTHODE BALAS-HAMMER
+================================================================================
+ 1. Pénalité max=19 sur ligne 5; coût min=32 en (F5, C1), allocation=60
+ 2. Pénalité max=10 sur colonne 0; coût min=1 en (F0, C0), allocation=10
+ 3. Pénalité max=10 sur colonne 0; coût min=11 en (F1, C0), allocation=20
+ 4. Pénalité max=10 sur colonne 0; coût min=21 en (F2, C0), allocation=30
+ 5. Pénalité max=10 sur colonne 0; coût min=31 en (F3, C0), allocation=40
+ 6. Pénalité max=21 sur colonne 1; coût min=41 en (F4, C1), allocation=50
+ 7. Pénalité max=10 sur colonne 0; coût min=61 en (F6, C0), allocation=20
+ 8. Pénalité max=10 sur colonne 1; coût min=62 en (F6, C1), allocation=30
+ 9. Pénalité max=10 sur colonne 2; coût min=63 en (F6, C2), allocation=20
+10. Pénalité max=10 sur colonne 2; coût min=73 en (F7, C2), allocation=80
+11. Pénalité max=10 sur colonne 2; coût min=83 en (F8, C2), allocation=60
+12. Pénalité max=10 sur colonne 3; coût min=84 en (F8, C3), allocation=30
+13. Pénalité max=10 sur colonne 3; coût min=94 en (F9, C3), allocation=100
+14. Pénalité max=10 sur colonne 3; coût min=104 en (F10, C3), allocation=50
+15. Pénalité max=10 sur colonne 4; coût min=105 en (F10, C4), allocation=60
+16. Pénalité max=10 sur colonne 4; coût min=115 en (F11, C4), allocation=120
+17. Pénalité max=10 sur colonne 4; coût min=125 en (F12, C4), allocation=20
+18. Pénalité max=10 sur colonne 5; coût min=126 en (F12, C5), allocation=110
+19. Pénalité max=10 sur colonne 5; coût min=136 en (F13, C5), allocation=110
+20. Pénalité max=10 sur colonne 6; coût min=137 en (F13, C6), allocation=30
+21. Pénalité max=10 sur colonne 6; coût min=147 en (F14, C6), allocation=150
+22. Pénalité max=10 sur colonne 6; coût min=157 en (F15, C6), allocation=60
+23. Pénalité max=10 sur colonne 7; coût min=158 en (F15, C7), allocation=100
+24. Pénalité max=10 sur colonne 7; coût min=168 en (F16, C7), allocation=160
+25. Pénalité max=10 sur colonne 8; coût min=169 en (F16, C8), allocation=10
+26. Pénalité max=10 sur colonne 8; coût min=179 en (F17, C8), allocation=180
+27. Pénalité max=10 sur colonne 8; coût min=189 en (F18, C8), allocation=90
+28. Pénalité max=200 sur ligne 19; coût min=200 en (F19, C9), allocation=200
+29. Pénalité max=190 sur ligne 18; coût min=190 en (F18, C9), allocation=100
+================================================================================
+Coût total obtenu: 277950
+Taille de base: 29 (attendu: 29)
+
+Itération 1
+
+TABLE DES POTENTIELS
+================================================================================
+u(i) = potentiels des fournisseurs
+v(j) = potentiels des clients
+
+Fournisseur          | u(i)      
+-----------------------------------
+Fournisseur 0        | 0         
+Fournisseur 1        | 10        
+Fournisseur 2        | 20        
+Fournisseur 3        | 30        
+Fournisseur 4        | 39        
+Fournisseur 5        | 30        
+Fournisseur 6        | 60        
+Fournisseur 7        | 70        
+Fournisseur 8        | 80        
+Fournisseur 9        | 90        
+Fournisseur 10       | 100       
+Fournisseur 11       | 110       
+Fournisseur 12       | 120       
+Fournisseur 13       | 130       
+Fournisseur 14       | 140       
+Fournisseur 15       | 150       
+Fournisseur 16       | 160       
+Fournisseur 17       | 170       
+Fournisseur 18       | 180       
+Fournisseur 19       | 190       
+
+Client               | v(j)      
+-----------------------------------
+Client 0             | 1         
+Client 1             | 2         
+Client 2             | 3         
+Client 3             | 4         
+Client 4             | 5         
+Client 5             | 6         
+Client 6             | 7         
+Client 7             | 8         
+Client 8             | 9         
+Client 9             | 10        
+================================================================================
+
+TABLE DES COÛTS MARGINAUX (pour cellules hors base)
+================================================================================
+F/C   |C0      C1      C2      C3      C4      C5      C6      C7      C8      C9      
+---------------------------------------------------------------------------------------
+F0    |BASE    0       0       0       0       0       0       0       0       0       
+F1    |BASE    0       0       0       0       0       0       0       0       0       
+F2    |BASE    0       0       0       0       0       0       0       0       0       
+F3    |BASE    0       0       0       0       0       0       0       0       0       
+F4    |1       BASE    1       1       1       1       1       1       1       1       
+F5    |20      BASE    20      20      20      20      20      20      20      20      
+F6    |BASE    BASE    BASE    0       0       0       0       0       0       0       
+F7    |0       0       BASE    0       0       0       0       0       0       0       
+F8    |0       0       BASE    BASE    0       0       0       0       0       0       
+F9    |0       0       0       BASE    0       0       0       0       0       0       
+F10   |0       0       0       BASE    BASE    0       0       0       0       0       
+F11   |0       0       0       0       BASE    0       0       0       0       0       
+F12   |0       0       0       0       BASE    BASE    0       0       0       0       
+F13   |0       0       0       0       0       BASE    BASE    0       0       0       
+F14   |0       0       0       0       0       0       BASE    0       0       0       
+F15   |0       0       0       0       0       0       BASE    BASE    0       0       
+F16   |0       0       0       0       0       0       0       BASE    BASE    0       
+F17   |0       0       0       0       0       0       0       0       BASE    0       
+F18   |0       0       0       0       0       0       0       0       BASE    BASE    
+F19   |0       0       0       0       0       0       0       0       0       BASE    
+================================================================================
+Aucun coût marginal négatif: solution optimale atteinte.
+================================================================================
+Coût final optimisé: 277950
+
+MATRICE DE TRANSPORT
+====================================================================================================
+F/C        |C0    C1    C2    C3    C4    C5    C6    C7    C8    C9    Provisions
+----------------------------------------------------------------------------------
+F0         |10    0     0     0     0     0     0     0     0     0     10    
+F1         |20    0     0     0     0     0     0     0     0     0     20    
+F2         |30    0     0     0     0     0     0     0     0     0     30    
+F3         |40    0     0     0     0     0     0     0     0     0     40    
+F4         |0     50    0     0     0     0     0     0     0     0     50    
+F5         |0     60    0     0     0     0     0     0     0     0     60    
+F6         |20    30    20    0     0     0     0     0     0     0     70    
+F7         |0     0     80    0     0     0     0     0     0     0     80    
+F8         |0     0     60    30    0     0     0     0     0     0     90    
+F9         |0     0     0     100   0     0     0     0     0     0     100   
+F10        |0     0     0     50    60    0     0     0     0     0     110   
+F11        |0     0     0     0     120   0     0     0     0     0     120   
+F12        |0     0     0     0     20    110   0     0     0     0     130   
+F13        |0     0     0     0     0     110   30    0     0     0     140   
+F14        |0     0     0     0     0     0     150   0     0     0     150   
+F15        |0     0     0     0     0     0     60    100   0     0     160   
+F16        |0     0     0     0     0     0     0     160   10    0     170   
+F17        |0     0     0     0     0     0     0     0     180   0     180   
+F18        |0     0     0     0     0     0     0     0     90    100   190   
+F19        |0     0     0     0     0     0     0     0     0     200   200   
+Commandes  |120   140   160   180   200   220   240   260   280   300   
+====================================================================================================
+
+Coût final: 277950
+Matrice de transport finale:
+
+MATRICE DE TRANSPORT
+====================================================================================================
+F/C        |C0    C1    C2    C3    C4    C5    C6    C7    C8    C9    Provisions
+----------------------------------------------------------------------------------
+F0         |10    0     0     0     0     0     0     0     0     0     10    
+F1         |20    0     0     0     0     0     0     0     0     0     20    
+F2         |30    0     0     0     0     0     0     0     0     0     30    
+F3         |40    0     0     0     0     0     0     0     0     0     40    
+F4         |0     50    0     0     0     0     0     0     0     0     50    
+F5         |0     60    0     0     0     0     0     0     0     0     60    
+F6         |20    30    20    0     0     0     0     0     0     0     70    
+F7         |0     0     80    0     0     0     0     0     0     0     80    
+F8         |0     0     60    30    0     0     0     0     0     0     90    
+F9         |0     0     0     100   0     0     0     0     0     0     100   
+F10        |0     0     0     50    60    0     0     0     0     0     110   
+F11        |0     0     0     0     120   0     0     0     0     0     120   
+F12        |0     0     0     0     20    110   0     0     0     0     130   
+F13        |0     0     0     0     0     110   30    0     0     0     140   
+F14        |0     0     0     0     0     0     150   0     0     0     150   
+F15        |0     0     0     0     0     0     60    100   0     0     160   
+F16        |0     0     0     0     0     0     0     160   10    0     170   
+F17        |0     0     0     0     0     0     0     0     180   0     180   
+F18        |0     0     0     0     0     0     0     0     90    100   190   
+F19        |0     0     0     0     0     0     0     0     0     200   200   
+Commandes  |120   140   160   180   200   220   240   260   280   300   
+====================================================================================================
